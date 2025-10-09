@@ -23,16 +23,44 @@ def run_query(request: QueryRequest):
 def insert_rows(request: InsertRequest):
     df = pd.DataFrame(request.data)
     try:
-        db.insert_dataframe(request.table, df)
-        return {"status": "inserted", "rows": len(df)}
+        # El id_field ya tiene valor por defecto "id" en el modelo
+        id_field = request.id_field or "id"
+        db.insert_dataframe(request.table, df, id_field)
+        return {
+            "status": "inserted", 
+            "rows": len(df),
+            "message": f"Se insertaron {len(df)} filas exitosamente"
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=409, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
  
 @app.post("/create_table")
 def create_table(request: CreateTableRequest):
-    query = f"CREATE TABLE IF NOT EXISTS {request.name} ({request.table_schema})" 
+    # Verificar si la tabla ya existe
+    if db.table_exists(request.name):
+        raise HTTPException(
+            status_code=409, 
+            detail=f"La tabla '{request.name}' ya existe"
+        )
+    
+    # Construir query con PRIMARY KEY si se especifica
+    if request.primary_key:
+        query = f"CREATE TABLE {request.name} ({request.table_schema}, PRIMARY KEY ({request.primary_key}))"
+    else:
+        query = f"CREATE TABLE IF NOT EXISTS {request.name} ({request.table_schema})"
+    
     result = db.execute(query)
-    return {"status": "created", "table": request.name}
+    
+    if isinstance(result, dict) and "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return {
+        "status": "created", 
+        "table": request.name,
+        "schema": request.table_schema
+    }
 
 if __name__ == "__main__":
     host = os.environ.get("HOST", "localhost")
