@@ -1,587 +1,439 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from models import (
-    QueryRequest, 
-    InsertRequest, 
-    CreateTableRequest,
     DataExtractionResponse,
     TradeIdea,
     DataExtractionListResponse,
     TradeIdeaListResponse,
-    InsertResponse,
-    CreateTableResponse
+    DashboardQueryRequest,
+    DashboardResponse,
+    DataExtractionWithTradeIdeas
 )
 from database import DuckDBClient
-from typing import Optional, List
+from typing import List
 from uuid import UUID
+import json
 import os
 import uvicorn
-import pandas as pd
-import json
-from datetime import date
-from pydantic import BaseModel
+
+# ============================================================
+# CONFIGURACIÓN DE LA APP
+# ============================================================
 
 app = FastAPI(
-    title="Mock BigQuery Service (DuckDB) - V2",
-    description="Mock BigQuery con soporte para UUID, JSON nativo y Foreign Keys",
-    version="2.0.0"
+    title="MockBigQuery - Research Data API",
+    description="API simplificada para gestión de research data y trade ideas",
+    version="2.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
+
+# CORS (ajusta según necesites)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inicializar base de datos
 db = DuckDBClient()
 
-@app.get("/api/health")
-def health_check():
-    """Verifica que el servicio esté funcionando"""
-    return {"status": "ok"}
+# ============================================================
+# HELPERS
+# ============================================================
+
+def parse_json_fields(row: dict, fields: List[str]) -> dict:
+    """Parsea campos JSON de strings a objetos Python"""
+    for field in fields:
+        if field in row and isinstance(row[field], str):
+            try:
+                row[field] = json.loads(row[field])
+            except json.JSONDecodeError:
+                row[field] = []
+    return row
+
+# ============================================================
+# ENDPOINTS DE SALUD
+# ============================================================
 
 @app.get("/")
 def root():
+    """Endpoint raíz con información de la API"""
     return {
-        "message": "Mock BigQuery V2 is running",
-        "features": [
-            "UUID primary keys",
-            "JSON native types",
-            "Foreign key constraints",
-            "Type-safe Pydantic models"
-        ]
+        "service": "MockBigQuery - Research Data API",
+        "version": "2.1.0",
+        "status": "online",
+        "endpoints": {
+            "health": "GET /health",
+            "docs": "GET /docs",
+            "data_extractions": {
+                "list": "GET /api/data-extractions",
+                "create": "POST /api/data-extractions",
+                "get_by_id": "GET /api/data-extractions/{id}",
+                "get_trade_ideas": "GET /api/data-extractions/{id}/trade-ideas"
+            },
+            "trade_ideas": {
+                "create": "POST /api/trade-ideas"
+            },
+            "dashboard": {
+                "query": "POST /api/dashboard"
+            },
+            "tags": {
+                "get_all": "GET /api/tags",
+                "get_by_category": "GET /api/tags/by-category/{category}",
+                "get_categories": "GET /api/tags/categories"
+            }
+        }
     }
 
-# ============================================================
-# ENDPOINTS GENÉRICOS (compatibilidad con versión anterior)
-# ============================================================
-
-@app.post("/query")
-def run_query(request: QueryRequest):
-    result = db.execute(request.sql)
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return {"rows": result}
-
-@app.post("/insert")
-def insert_rows(request: InsertRequest) -> InsertResponse:
-    df = pd.DataFrame(request.data)
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
     try:
-        db.insert_dataframe(request.table, df, request.id_field)
-        return InsertResponse(
-            status="success",
-            rows=len(df),
-            message=f"Inserted {len(df)} rows into {request.table}",
-            ids=[str(row[request.id_field]) for row in request.data if request.id_field in row]
-        )
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
+        # Verificar conexión a DB
+        result = db.execute("SELECT 1 as test")
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "version": "2.1.0"
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/create_table")
-async def create_table(request: CreateTableRequest) -> CreateTableResponse:
-    """Crea una tabla nueva en la base de datos"""
-    try:
-        result = db.create_table(
-            table_name=request.name,
-            schema=request.table_schema,
-            primary_key=request.primary_key
-        )
-        
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-        
-        return CreateTableResponse(
-            status="success",
-            table=request.name,
-            schema=request.table_schema
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e)
+        }
 
 # ============================================================
-# ENDPOINTS ESPECÍFICOS PARA DATA EXTRACTION
+# ENDPOINTS DE DATA EXTRACTIONS
 # ============================================================
 
 @app.get("/api/data-extractions", response_model=DataExtractionListResponse)
-def get_data_extractions(
-    limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    tag: Optional[str] = None
+def list_data_extractions(
+    tags: str = None,  # Formato: "tag1,tag2,tag3"
+    startDate: str = None,
+    endDate: str = None
 ):
-    """Obtiene lista de data extractions con paginación y filtros"""
-    
-    # Construir query con filtros
-    where_clause = ""
-    if tag:
-        where_clause = f"WHERE list_contains(tags, '{tag}')"
-    
-    # Obtener total
-    count_query = f"SELECT COUNT(*) as total FROM data_extraction_responses {where_clause}"
-    total_result = db.execute(count_query)
-    total = total_result[0]["total"] if total_result else 0
-    
-    # Obtener datos
-    query = f"""
-        SELECT * FROM data_extraction_responses 
-        {where_clause}
-        ORDER BY date DESC
-        LIMIT {limit} OFFSET {offset}
     """
-    result = db.execute(query)
+    Lista data extractions con filtros opcionales
     
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    # Convertir a modelos Pydantic
-    items = []
-    for row in result:
-        # Parsear campos JSON si vienen como string
-        for json_field in ['tags', 'pros', 'cons', 'authors']:
-            if json_field in row and isinstance(row[json_field], str):
-                row[json_field] = json.loads(row[json_field])
-        items.append(DataExtractionResponse(**row))
-    
-    return DataExtractionListResponse(total=total, items=items)
+    Query params:
+    - tags: Tags separados por comas (OR logic)
+    - startDate: Fecha inicial (YYYY-MM-DD)
+    - endDate: Fecha final (YYYY-MM-DD)
+    """
+    try:
+        # Parsear tags
+        tags_list = tags.split(",") if tags else None
+        
+        # Consultar DB
+        results = db.get_data_extractions(
+            tags=tags_list,
+            start_date=startDate,
+            end_date=endDate
+        )
+        
+        # Parsear JSON fields
+        items = []
+        for row in results:
+            row = parse_json_fields(row, ['tags', 'pros', 'cons', 'authors'])
+            items.append(DataExtractionResponse(**row))
+        
+        return DataExtractionListResponse(total=len(items), items=items)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/data-extractions/{extraction_id}", response_model=DataExtractionResponse)
 def get_data_extraction(extraction_id: UUID):
     """Obtiene un data extraction por ID"""
-    query = f"SELECT * FROM data_extraction_responses WHERE id = '{extraction_id}'"
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Data extraction not found")
-    
-    row = result[0]
-    for json_field in ['tags', 'pros', 'cons', 'authors']:
-        if json_field in row and isinstance(row[json_field], str):
-            row[json_field] = json.loads(row[json_field])
-    
-    return DataExtractionResponse(**row)
+    try:
+        query = f"SELECT * FROM data_extraction_responses WHERE id = '{extraction_id}'"
+        result = db.execute(query)
+        
+        if isinstance(result, dict) and "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Data extraction not found")
+        
+        row = parse_json_fields(result[0], ['tags', 'pros', 'cons', 'authors'])
+        return DataExtractionResponse(**row)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/data-extractions", response_model=DataExtractionResponse, status_code=201)
 def create_data_extraction(extraction: DataExtractionResponse):
     """Crea un nuevo data extraction"""
-    
-    # Convertir a dict y preparar para inserción
-    data = extraction.model_dump()
-    
-    # Construir query INSERT con valores correctamente escapados
-    columns = []
-    values = []
-    
-    for key, value in data.items():
-        columns.append(key)
+    try:
+        data = extraction.model_dump()
+        result = db.insert_data_extraction(data)
         
-        if value is None:
-            values.append("NULL")
-        elif isinstance(value, (list, dict)):
-            # Escapar comillas simples en JSON y convertir a tipo JSON
-            json_str = json.dumps(value).replace("'", "''")
-            values.append(f"'{json_str}'::JSON")
-        elif isinstance(value, str):
-            # Escapar comillas simples en strings
-            escaped_value = value.replace("'", "''")
-            values.append(f"'{escaped_value}'")
-        elif isinstance(value, UUID):
-            # UUIDs necesitan comillas
-            values.append(f"'{value}'")
-        elif isinstance(value, date):
-            # Dates necesitan comillas y formato ISO
-            values.append(f"'{value.isoformat()}'::DATE")
-        else:
-            values.append(str(value))
-    
-    columns_str = ", ".join(columns)
-    values_str = ", ".join(values)
-    
-    query = f"""
-        INSERT INTO data_extraction_responses ({columns_str})
-        VALUES ({values_str})
-        RETURNING *
-    """
-    
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    row = result[0]
-    for json_field in ['tags', 'pros', 'cons', 'authors']:
-        if json_field in row and isinstance(row[json_field], str):
-            row[json_field] = json.loads(row[json_field])
-    
-    return DataExtractionResponse(**row)
-
-# ============================================================
-# ENDPOINTS ESPECÍFICOS PARA TRADE IDEAS
-# ============================================================
-
-@app.get("/api/trade-ideas", response_model=TradeIdeaListResponse)
-def get_trade_ideas(
-    limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    min_conviction: Optional[int] = Query(default=None, ge=1, le=10),
-    recommendation: Optional[str] = None
-):
-    """Obtiene lista de trade ideas con paginación y filtros"""
-    
-    # Construir query con filtros
-    where_clauses = []
-    if min_conviction:
-        where_clauses.append(f"conviction >= {min_conviction}")
-    if recommendation:
-        where_clauses.append(f"recommendation = '{recommendation}'")
-    
-    where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-    
-    # Obtener total
-    count_query = f"SELECT COUNT(*) as total FROM trade_ideas {where_clause}"
-    total_result = db.execute(count_query)
-    total = total_result[0]["total"] if total_result else 0
-    
-    # Obtener datos
-    query = f"""
-        SELECT * FROM trade_ideas 
-        {where_clause}
-        ORDER BY conviction DESC, recommendation
-        LIMIT {limit} OFFSET {offset}
-    """
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    # Convertir a modelos Pydantic
-    items = []
-    for row in result:
-        for json_field in ['pros', 'cons']:
-            if json_field in row and isinstance(row[json_field], str):
-                row[json_field] = json.loads(row[json_field])
-        items.append(TradeIdea(**row))
-    
-    return TradeIdeaListResponse(total=total, items=items)
-
-@app.get("/api/trade-ideas/{idea_id}", response_model=TradeIdea)
-def get_trade_idea(idea_id: UUID):
-    """Obtiene una trade idea por ID"""
-    query = f"SELECT * FROM trade_ideas WHERE id = '{idea_id}'"
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Trade idea not found")
-    
-    row = result[0]
-    for json_field in ['pros', 'cons']:
-        if json_field in row and isinstance(row[json_field], str):
-            row[json_field] = json.loads(row[json_field])
-    
-    return TradeIdea(**row)
+        row = parse_json_fields(result, ['tags', 'pros', 'cons', 'authors'])
+        return DataExtractionResponse(**row)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/data-extractions/{extraction_id}/trade-ideas", response_model=TradeIdeaListResponse)
 def get_trade_ideas_by_extraction(extraction_id: UUID):
     """Obtiene todas las trade ideas de un data extraction"""
-    query = f"""
-        SELECT * FROM trade_ideas 
-        WHERE data_extraction_id = '{extraction_id}'
-        ORDER BY conviction DESC
-    """
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    items = []
-    for row in result:
-        for json_field in ['pros', 'cons']:
-            if json_field in row and isinstance(row[json_field], str):
-                row[json_field] = json.loads(row[json_field])
-        items.append(TradeIdea(**row))
-    
-    return TradeIdeaListResponse(total=len(items), items=items)
+    try:
+        results = db.get_trade_ideas_by_extraction(str(extraction_id))
+        
+        items = []
+        for row in results:
+            row = parse_json_fields(row, ['pros', 'cons'])
+            items.append(TradeIdea(**row))
+        
+        return TradeIdeaListResponse(total=len(items), items=items)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
+# ENDPOINTS DE TRADE IDEAS
+# ============================================================
 
 @app.post("/api/trade-ideas", response_model=TradeIdea, status_code=201)
 def create_trade_idea(idea: TradeIdea):
     """Crea una nueva trade idea"""
-    data = idea.model_dump()
-    
-    columns = []
-    values = []
-    
-    for key, value in data.items():
-        columns.append(key)
+    try:
+        data = idea.model_dump()
+        result = db.insert_trade_idea(data)
         
-        if value is None:
-            values.append("NULL")
-        elif isinstance(value, (list, dict)):
-            json_str = json.dumps(value).replace("'", "''")
-            values.append(f"'{json_str}'::JSON")
-        elif isinstance(value, str):
-            escaped_value = value.replace("'", "''")
-            values.append(f"'{escaped_value}'")
-        elif isinstance(value, UUID):
-            values.append(f"'{value}'")
-        else:
-            values.append(str(value))
-    
-    columns_str = ", ".join(columns)
-    values_str = ", ".join(values)
-    
-    query = f"""
-        INSERT INTO trade_ideas ({columns_str})
-        VALUES ({values_str})
-        RETURNING *
-    """
-    
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    row = result[0]
-    for json_field in ['pros', 'cons']:
-        if json_field in row and isinstance(row[json_field], str):
-            row[json_field] = json.loads(row[json_field])
-    
-    return TradeIdea(**row)
+        row = parse_json_fields(result, ['pros', 'cons'])
+        return TradeIdea(**row)
+        
+    except Exception as e:
+        # Si es error de foreign key, dar mensaje más claro
+        if "foreign key" in str(e).lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Data extraction with id {idea.data_extraction_id} does not exist"
+            )
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================
-# ENDPOINTS DE ANÁLISIS
+# ENDPOINT DE DASHBOARD
 # ============================================================
-
-@app.get("/api/analytics/conviction-distribution")
-def get_conviction_distribution():
-    """Obtiene la distribución de convicciones"""
-    query = """
-        SELECT conviction, COUNT(*) as count
-        FROM trade_ideas
-        GROUP BY conviction
-        ORDER BY conviction
-    """
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return {"distribution": result}
-
-@app.get("/api/analytics/top-tags")
-def get_top_tags(limit: int = Query(default=10, ge=1, le=50)):
-    """Obtiene los tags más usados"""
-    # DuckDB almacena tags como JSON, necesitamos convertir a ARRAY primero
-    query = f"""
-        WITH exploded_tags AS (
-            SELECT UNNEST(CAST(tags AS VARCHAR[])) as tag
-            FROM data_extraction_responses
-            WHERE tags IS NOT NULL
-        )
-        SELECT tag, COUNT(*) as count
-        FROM exploded_tags
-        WHERE tag IS NOT NULL AND tag != ''
-        GROUP BY tag
-        ORDER BY count DESC
-        LIMIT {limit}
-    """
-    result = db.execute(query)
-    
-    if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    return {"top_tags": result}
-
-# ============================================================
-# ENDPOINTS DEL DASHBOARD
-# ============================================================
-
-# Agregar modelo para el request del dashboard
-class DashboardQueryRequest(BaseModel):
-    """Request para consulta del dashboard"""
-    tags: Optional[List[str]] = None
-    startDate: Optional[str] = None  # Formato: YYYY-MM-DD
-    endDate: Optional[str] = None    # Formato: YYYY-MM-DD
-
-class DataExtractionWithTradeIdeas(BaseModel):
-    """Data extraction con sus trade ideas asociadas"""
-    extraction: DataExtractionResponse
-    trade_ideas: List[TradeIdea]
-
-class DashboardResponse(BaseModel):
-    """Respuesta del dashboard con métricas"""
-    total_extractions: int
-    total_trade_ideas: int
-    date_range: dict
-    tags_filter: Optional[List[str]]
-    results: List[DataExtractionWithTradeIdeas]
 
 @app.post("/api/dashboard", response_model=DashboardResponse)
-async def get_dashboard_data(request: DashboardQueryRequest):
+def query_dashboard(request: DashboardQueryRequest):
     """
-    Obtiene data extractions con sus trade ideas filtrados por tags y fechas
+    Consulta dashboard con data extractions y sus trade ideas
     
-    Parámetros:
-    - tags: Lista de tags para filtrar (OR logic)
-    - startDate: Fecha inicial (YYYY-MM-DD)
-    - endDate: Fecha final (YYYY-MM-DD)
+    Body:
+    {
+        "tags": ["tag1", "tag2"],  // Opcional
+        "startDate": "2025-01-01",  // Opcional
+        "endDate": "2025-12-31"     // Opcional
+    }
     """
-    
     try:
-        # Log de entrada para debugging
-        print(f"📊 Dashboard request received:")
-        print(f"   Tags: {request.tags}")
-        print(f"   Start Date: {request.startDate}")
-        print(f"   End Date: {request.endDate}")
+        print(f"📊 Dashboard query: tags={request.tags}, dates={request.startDate} to {request.endDate}")
         
-        # Construir cláusula WHERE para filtros
-        where_clauses = []
-        
-        # Filtro por tags (si al menos un tag coincide)
-        if request.tags and len(request.tags) > 0:
-            # Para JSON en DuckDB, necesitamos usar json_contains o CAST
-            # Opción 1: Convertir JSON a VARCHAR[] y usar list_contains
-            tag_conditions = []
-            for tag in request.tags:
-                # Escapar comillas en el tag
-                escaped_tag = tag.replace("'", "''")
-                tag_conditions.append(f"list_contains(CAST(tags AS VARCHAR[]), '{escaped_tag}')")
-            
-            where_clauses.append(f"({' OR '.join(tag_conditions)})")
-            print(f"   📌 Tag filter: {tag_conditions}")
-        
-        # Filtro por fecha inicial
-        if request.startDate:
-            where_clauses.append(f"date >= '{request.startDate}'::DATE")
-            print(f"   📅 Start date filter: {request.startDate}")
-        
-        # Filtro por fecha final
-        if request.endDate:
-            where_clauses.append(f"date <= '{request.endDate}'::DATE")
-            print(f"   📅 End date filter: {request.endDate}")
-        
-        where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-        
-        # Query para obtener data extractions
-        extractions_query = f"""
-            SELECT * FROM data_extraction_responses
-            {where_clause}
-            ORDER BY date DESC, title
-        """
-        
-        print(f"   🔍 Query: {extractions_query}")
-        
-        try:
-            extractions_result = db.execute(extractions_query)
-        except Exception as db_error:
-            print(f"   ❌ Database error on extractions query: {str(db_error)}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Error executing extractions query: {str(db_error)}"
-            )
-        
-        if isinstance(extractions_result, dict) and "error" in extractions_result:
-            print(f"   ❌ Query returned error: {extractions_result['error']}")
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Database query error: {extractions_result['error']}"
-            )
-        
-        print(f"   ✅ Found {len(extractions_result) if extractions_result else 0} extractions")
+        # Obtener data extractions
+        extractions = db.get_data_extractions(
+            tags=request.tags,
+            start_date=request.startDate,
+            end_date=request.endDate
+        )
         
         # Procesar cada extraction y obtener sus trade ideas
         results = []
         total_trade_ideas = 0
         
-        for idx, extraction_row in enumerate(extractions_result):
-            try:
-                print(f"   📄 Processing extraction {idx + 1}...")
-                
-                # Parsear campos JSON del extraction
-                for json_field in ['tags', 'pros', 'cons', 'authors']:
-                    if json_field in extraction_row and isinstance(extraction_row[json_field], str):
-                        try:
-                            extraction_row[json_field] = json.loads(extraction_row[json_field])
-                        except json.JSONDecodeError as json_error:
-                            print(f"      ⚠ JSON parse error for field '{json_field}': {json_error}")
-                            extraction_row[json_field] = []
-                
-                extraction = DataExtractionResponse(**extraction_row)
-                print(f"      ✓ Extraction created: {extraction.title}")
-                
-                # Obtener trade ideas asociadas
-                trade_ideas_query = f"""
-                    SELECT * FROM trade_ideas
-                    WHERE data_extraction_id = '{extraction.id}'
-                    ORDER BY conviction DESC
-                """
-                
-                try:
-                    trade_ideas_result = db.execute(trade_ideas_query)
-                except Exception as trade_error:
-                    print(f"      ⚠ Error fetching trade ideas: {trade_error}")
-                    trade_ideas_result = []
-                
-                trade_ideas = []
-                if trade_ideas_result and not isinstance(trade_ideas_result, dict):
-                    for idea_row in trade_ideas_result:
-                        try:
-                            # Parsear campos JSON de trade ideas
-                            for json_field in ['pros', 'cons']:
-                                if json_field in idea_row and isinstance(idea_row[json_field], str):
-                                    try:
-                                        idea_row[json_field] = json.loads(idea_row[json_field])
-                                    except json.JSONDecodeError:
-                                        idea_row[json_field] = []
-                            
-                            trade_ideas.append(TradeIdea(**idea_row))
-                        except Exception as idea_error:
-                            print(f"      ⚠ Error parsing trade idea: {idea_error}")
-                            continue
-                    
-                    total_trade_ideas += len(trade_ideas)
-                    print(f"      ✓ Found {len(trade_ideas)} trade ideas")
-                
-                results.append(DataExtractionWithTradeIdeas(
-                    extraction=extraction,
-                    trade_ideas=trade_ideas
-                ))
-                
-            except Exception as extraction_error:
-                print(f"   ❌ Error processing extraction {idx + 1}: {str(extraction_error)}")
-                print(f"      Raw data: {extraction_row}")
-                # Continuar con la siguiente extracción en lugar de fallar completamente
-                continue
+        for extraction_row in extractions:
+            # Parsear extraction
+            extraction_row = parse_json_fields(extraction_row, ['tags', 'pros', 'cons', 'authors'])
+            extraction = DataExtractionResponse(**extraction_row)
+            
+            # Obtener trade ideas
+            trade_ideas_rows = db.get_trade_ideas_by_extraction(str(extraction.id))
+            trade_ideas = []
+            
+            for idea_row in trade_ideas_rows:
+                idea_row = parse_json_fields(idea_row, ['pros', 'cons'])
+                trade_ideas.append(TradeIdea(**idea_row))
+            
+            total_trade_ideas += len(trade_ideas)
+            
+            results.append(DataExtractionWithTradeIdeas(
+                extraction=extraction,
+                trade_ideas=trade_ideas
+            ))
         
-        # Construir respuesta con métricas
-        date_range = {
-            "start": request.startDate if request.startDate else "No especificada",
-            "end": request.endDate if request.endDate else "No especificada"
-        }
+        # ============================================================
+        # OBTENER ESTADÍSTICAS ADICIONALES
+        # ============================================================
         
-        print(f"   ✅ Dashboard response ready:")
-        print(f"      Total extractions: {len(results)}")
-        print(f"      Total trade ideas: {total_trade_ideas}")
+        # Tags populares
+        popular_tags_data = db.get_popular_tags(
+            tag_names=request.tags,
+            start_date=request.startDate,
+            end_date=request.endDate,
+            limit=5
+        )
+        
+        # Extracciones por país
+        by_country_data = db.get_extractions_by_country(
+            tag_names=request.tags,
+            start_date=request.startDate,
+            end_date=request.endDate
+        )
+        
+        # Extracciones por sector
+        by_sector_data = db.get_extractions_by_sector(
+            tag_names=request.tags,
+            start_date=request.startDate,
+            end_date=request.endDate
+        )
+        
+        print(f"✅ Found {len(results)} extractions with {total_trade_ideas} trade ideas")
+        print(f"📊 Stats: {len(popular_tags_data)} popular tags, {len(by_country_data)} countries, {len(by_sector_data)} sectors")
         
         return DashboardResponse(
             total_extractions=len(results),
             total_trade_ideas=total_trade_ideas,
-            date_range=date_range,
-            tags_filter=request.tags,
+            date_range={
+                "start": request.startDate or "No especificada",
+                "end": request.endDate or "No especificada"
+            },
+            tags_filter=request.tags or [],
+            popular_tags=popular_tags_data,
+            by_country=by_country_data,
+            by_sector=by_sector_data,
             results=results
         )
         
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
     except Exception as e:
-        # Capturar cualquier otra excepción no manejada
-        print(f"   ❌ Unexpected error in dashboard endpoint: {str(e)}")
+        print(f"❌ Dashboard error: {str(e)}")
         import traceback
-        print(f"   Stack trace: {traceback.format_exc()}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
+# ENDPOINTS DE TAGS
+# ============================================================
+
+@app.get("/api/tags")
+def get_all_tags():
+    """
+    Obtiene todos los tags disponibles en el sistema
+    
+    Returns:
+        Lista de tags con sus categorías
+    """
+    try:
+        tags = db.execute("""
+            SELECT 
+                id,
+                name,
+                category
+            FROM tags
+            ORDER BY category, name
+        """)
+        
+        if isinstance(tags, dict) and "error" in tags:
+            raise HTTPException(status_code=500, detail=tags["error"])
+        
+        if not tags:
+            return []
+        
+        print(f"✅ Returning {len(tags)} tags")
+        return tags
+        
+    except Exception as e:
+        print(f"❌ Error al obtener tags: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error in dashboard endpoint: {str(e)}"
+            detail=f"Error al obtener tags: {str(e)}"
         )
+
+@app.get("/api/tags/by-category/{category}")
+def get_tags_by_category(category: str):
+    """
+    Obtiene todos los tags de una categoría específica
+    
+    Args:
+        category: Categoría del tag (asset_class, country, sector, etc.)
+    
+    Returns:
+        Lista de tags de esa categoría
+    """
+    try:
+        tags = db.execute(f"""
+            SELECT 
+                id,
+                name,
+                category
+            FROM tags
+            WHERE category = '{category}'
+            ORDER BY name
+        """)
+        
+        if isinstance(tags, dict) and "error" in tags:
+            raise HTTPException(status_code=500, detail=tags["error"])
+        
+        if not tags:
+            return []
+        
+        print(f"✅ Returning {len(tags)} tags for category '{category}'")
+        return tags
+        
+    except Exception as e:
+        print(f"❌ Error al obtener tags por categoría: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener tags: {str(e)}"
+        )
+
+@app.get("/api/tags/categories")
+def get_tag_categories():
+    """
+    Obtiene todas las categorías de tags disponibles
+    
+    Returns:
+        Lista de categorías con el conteo de tags en cada una
+    """
+    try:
+        categories = db.execute("""
+            SELECT 
+                category,
+                COUNT(*) as tag_count
+            FROM tags
+            GROUP BY category
+            ORDER BY category
+        """)
+        
+        if isinstance(categories, dict) and "error" in categories:
+            raise HTTPException(status_code=500, detail=categories["error"])
+        
+        if not categories:
+            return []
+        
+        print(f"✅ Returning {len(categories)} tag categories")
+        return categories
+        
+    except Exception as e:
+        print(f"❌ Error al obtener categorías: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener categorías: {str(e)}"
+        )
+
+# ============================================================
+# SERVIDOR
+# ============================================================
 
 if __name__ == "__main__":
     host = os.environ.get("HOST", "localhost")
     port = int(os.environ.get("PORT", 9000))
+    
     uvicorn.run(app, host=host, port=port)
