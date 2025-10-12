@@ -18,6 +18,23 @@ class DuckDBClient:
         except Exception as e:
             return {"error": str(e)}
     
+    def create_table(self, table_name: str, schema: str, primary_key: str = None) -> Dict[str, Any]:
+        """Crea una nueva tabla en la base de datos"""
+        try:
+            # Construir query CREATE TABLE
+            create_query = f"CREATE TABLE {table_name} ({schema})"
+            
+            # Ejecutar creación
+            self.con.execute(create_query)
+            
+            return {
+                "status": "success",
+                "table": table_name,
+                "schema": schema
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
     def table_exists(self, table_name: str) -> bool:
         """Verifica si una tabla existe en la base de datos"""
         try:
