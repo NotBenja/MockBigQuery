@@ -8,10 +8,8 @@ def init_tags():
     # Ruta al archivo tags.json
     tags_json_path = os.path.join(
         os.path.dirname(__file__),
-        "..",
-        "researchlens_ms-iagen",
-        "src",
-        "extraction_task",
+        ".",
+        "mock_data",
         "tags",
         "tags.json"
     )
