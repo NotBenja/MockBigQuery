@@ -1,28 +1,25 @@
 from database import DuckDBClient
-import os
+from pathlib import Path
 import json
+from uuid import uuid4
 
 def init_tags():
-    """Inicializa los tags desde el archivo JSON y vincula tags existentes en data extractions"""
+    """
+    Inicializa solo los tags desde tags.json
+    Útil si ya tienes extractions pero quieres recargar tags
+    """
     
-    # Ruta al archivo tags.json
-    tags_json_path = os.path.join(
-        os.path.dirname(__file__),
-        ".",
-        "mock_data",
-        "tags",
-        "tags.json"
-    )
+    tags_file = Path("mock_data") / "tags" / "tags.json"
     
-    if not os.path.exists(tags_json_path):
-        print(f"❌ No se encontró el archivo: {tags_json_path}")
+    if not tags_file.exists():
+        print(f"❌ No se encontró el archivo: {tags_file}")
         return
     
     db = DuckDBClient()
     
     try:
         # Verificar si ya hay tags
-        existing = db.execute("SELECT COUNT(*) as count FROM tags")
+        existing = db.execute("SELECT COUNT(*) as count FROM tags", [])
         existing_count = existing[0]['count'] if existing else 0
         
         if existing_count > 0:
@@ -31,12 +28,35 @@ def init_tags():
             if response.lower() != 's':
                 print("❌ Operación cancelada")
                 return
+            
+            # Eliminar tags existentes
+            print("🗑️  Eliminando tags existentes...")
+            db.conn.execute("DELETE FROM extraction_tags")
+            db.conn.execute("DELETE FROM tags")
+            print("✓ Tags eliminados")
         
-        # Cargar tags
-        print(f"📥 Cargando tags desde: {tags_json_path}")
-        tags_inserted = db.load_tags_from_json(tags_json_path)
+        # Cargar tags desde JSON
+        print(f"\n📥 Cargando tags desde: {tags_file}")
         
-        print(f"✅ {tags_inserted} tags insertados exitosamente")
+        with open(tags_file, 'r', encoding='utf-8') as f:
+            tags_data = json.load(f)
+        
+        total_inserted = 0
+        
+        # Iterar por categorías
+        for category, tag_list in tags_data.items():
+            print(f"\n📂 Categoría: {category}")
+            
+            for tag_name in tag_list:
+                tag_id = str(uuid4())
+                try:
+                    db.insert_tag(tag_id, tag_name, category)
+                    total_inserted += 1
+                    print(f"   ✓ {tag_name}")
+                except Exception as e:
+                    print(f"   ⚠️  Error al insertar '{tag_name}': {str(e)}")
+        
+        print(f"\n✅ Total tags insertados: {total_inserted}")
         
         # Mostrar resumen por categoría
         print("\n📊 Resumen por categoría:")
@@ -45,73 +65,20 @@ def init_tags():
             FROM tags 
             GROUP BY category 
             ORDER BY category
-        """)
+        """, [])
         
         for cat in categories:
             print(f"   {cat['category']}: {cat['count']} tags")
         
-        # ============================================================
-        # VINCULAR TAGS A DATA EXTRACTIONS EXISTENTES
-        # ============================================================
+        # Si hay extractions, vincular tags automáticamente
+        result = db.execute("SELECT COUNT(*) as count FROM research_extractions", [])
+        extraction_count = result[0]['count'] if result else 0
         
-        print("\n🔗 Vinculando tags a data extractions existentes...")
+        if extraction_count > 0:
+            print(f"\n🔗 Encontradas {extraction_count} research extractions")
+            print("   Los tags se vincularán automáticamente al consultar extractions")
         
-        # Obtener todos los data extractions
-        extractions = db.execute("SELECT id, tags FROM data_extraction_responses")
-        
-        if not extractions or len(extractions) == 0:
-            print("   ℹ️  No hay data extractions para vincular")
-        else:
-            print(f"   📊 Encontradas {len(extractions)} data extractions")
-            
-            total_linked = 0
-            extractions_processed = 0
-            extractions_with_tags = 0
-            
-            for extraction in extractions:
-                extraction_id = extraction['id']
-                tags_json = extraction['tags']
-                
-                # Parsear tags del JSON
-                if isinstance(tags_json, str):
-                    try:
-                        tags = json.loads(tags_json)
-                    except:
-                        tags = []
-                elif isinstance(tags_json, list):
-                    tags = tags_json
-                else:
-                    tags = []
-                
-                if tags and len(tags) > 0:
-                    linked = db.link_tags_to_extraction(extraction_id, tags)
-                    total_linked += linked
-                    extractions_processed += 1
-                    
-                    if linked > 0:
-                        extractions_with_tags += 1
-                    
-                    # Mostrar progreso cada 5 extracciones
-                    if extractions_processed % 5 == 0:
-                        print(f"   ⏳ Procesadas {extractions_processed}/{len(extractions)} extracciones...")
-            
-            print(f"\n   ✅ Vinculación completada:")
-            print(f"      • Extracciones procesadas: {extractions_processed}")
-            print(f"      • Extracciones con tags vinculados: {extractions_with_tags}")
-            print(f"      • Total de vínculos creados: {total_linked}")
-            
-            # Verificar resultados
-            stats = db.execute("""
-                SELECT 
-                    COUNT(DISTINCT data_extraction_id) as extractions_linked,
-                    COUNT(*) as total_links
-                FROM data_extraction_tags
-            """)
-            
-            if stats:
-                print(f"\n   📊 Verificación final:")
-                print(f"      • Extracciones con vínculos en BD: {stats[0]['extractions_linked']}")
-                print(f"      • Total de vínculos en BD: {stats[0]['total_links']}")
+        db.close()
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
@@ -120,4 +87,8 @@ def init_tags():
         raise
 
 if __name__ == "__main__":
+    print("╔" + "═"*68 + "╗")
+    print("║" + " "*20 + "INICIALIZACIÓN DE TAGS v3.0.0" + " "*19 + "║")
+    print("╚" + "═"*68 + "╝\n")
+    
     init_tags()

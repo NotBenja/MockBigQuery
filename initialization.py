@@ -1,11 +1,11 @@
 import requests
 import json
 from pathlib import Path
-from datetime import date
-from typing import Dict, Any, List
+from datetime import datetime
+from typing import Dict, Any
 import sys
 from database import DuckDBClient
-import time
+from uuid import uuid4
 
 BASE_URL = "http://localhost:9000"
 MOCK_DATA_DIR = Path("mock_data")
@@ -16,20 +16,6 @@ def print_section(title: str):
     print(f"  {title}")
     print(f"{'='*70}")
 
-def check_server():
-    """Verifica que el servidor esté corriendo"""
-    try:
-        response = requests.get(BASE_URL, timeout=2)
-        if response.status_code == 200:
-            print("✓ Servidor corriendo correctamente")
-            return True
-        else:
-            print(f"❌ Servidor respondió con código {response.status_code}")
-            return False
-    except requests.exceptions.ConnectionError:
-        print(f"⚠️  Servidor no está corriendo (esto es correcto para la inicialización)")
-        return False
-
 def drop_and_create_tables():
     """Elimina y recrea las tablas usando DuckDBClient"""
     print_section("LIMPIANDO Y RECREANDO TABLAS")
@@ -37,18 +23,23 @@ def drop_and_create_tables():
     try:
         db = DuckDBClient()
         
-        # Eliminar tablas en orden inverso (por foreign keys)
+        # Eliminar tablas existentes
         print("🗑️  Eliminando tablas existentes...")
-        db.drop_tables()
-        print("✓ Tablas eliminadas")
+        try:
+            db.conn.execute("DROP TABLE IF EXISTS extraction_tags CASCADE")
+            db.conn.execute("DROP TABLE IF EXISTS research_extractions CASCADE")
+            db.conn.execute("DROP TABLE IF EXISTS tags CASCADE")
+            print("✓ Tablas eliminadas")
+        except Exception as e:
+            print(f"⚠️  Advertencia al eliminar tablas: {str(e)}")
         
-        # Recrear tablas
-        print("\n🔨 Creando tablas nuevas...")
-        db._init_tables()
+        # Recrear tablas (usando el método del constructor)
+        print("\n🔨 Recreando tablas nuevas...")
+        db._initialize_database()
         print("✓ Tablas creadas exitosamente")
         
         # Cerrar conexión
-        db.con.close()
+        db.close()
         
         return True
         
@@ -63,9 +54,192 @@ def load_json_file(filepath: Path) -> Dict[str, Any]:
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def load_mock_data_direct():
-    """Carga todos los datos mock DIRECTAMENTE a la BD (sin API)"""
-    print_section("CARGANDO DATOS MOCK")
+def parse_date(raw_date: str) -> str:
+    """Valida y normaliza fechas"""
+    invalid_dates = [
+        "Información no disponible", 
+        "Fecha no disponible", 
+        "No disponible",
+        "N/A",
+        ""
+    ]
+    
+    if not raw_date or raw_date in invalid_dates:
+        return datetime.today().strftime("%Y-%m-%d")
+    
+    try:
+        if isinstance(raw_date, str) and len(raw_date) == 10:
+            datetime.fromisoformat(raw_date)
+            return raw_date
+        else:
+            return datetime.today().strftime("%Y-%m-%d")
+    except (ValueError, TypeError):
+        return datetime.today().strftime("%Y-%m-%d")
+
+def convert_summary_to_bulletpoints(summary: Any) -> list:
+    """
+    Convierte el summary antiguo (string o lista de strings) 
+    al nuevo formato List[BulletPoint]
+    """
+    if isinstance(summary, str):
+        # Si es un string, crear un solo bullet point
+        return [{
+            "title": "Resumen Principal",
+            "body": summary
+        }]
+    elif isinstance(summary, list):
+        # Si es lista, convertir cada elemento
+        bullet_points = []
+        for idx, item in enumerate(summary, 1):
+            if isinstance(item, str):
+                bullet_points.append({
+                    "title": f"Punto {idx}",
+                    "body": item
+                })
+            elif isinstance(item, dict):
+                # Ya está en formato correcto
+                bullet_points.append(item)
+        return bullet_points
+    else:
+        return []
+
+def convert_trade_summary_to_bulletpoints(trade_summary: Any) -> list:
+    """
+    Convierte el summary de TradeIdea al formato List[BulletPoint]
+    """
+    if isinstance(trade_summary, str):
+        return [{
+            "title": "Análisis",
+            "body": trade_summary
+        }]
+    elif isinstance(trade_summary, list):
+        bullet_points = []
+        for idx, item in enumerate(trade_summary, 1):
+            if isinstance(item, str):
+                bullet_points.append({
+                    "title": f"Punto {idx}",
+                    "body": item
+                })
+            elif isinstance(item, dict):
+                bullet_points.append(item)
+        return bullet_points
+    else:
+        return []
+
+def normalize_tags_structure(tags_data: Any, counterpart: str = "Goldman Sachs") -> Dict[str, Any]:
+    """
+    Convierte tags antiguos al formato nuevo Tags(ContentExtractionTags)
+    """
+    if isinstance(tags_data, list):
+        # Tags antiguos como lista plana -> distribuir en categorías
+        return {
+            "counterpart": counterpart,
+            "asset_class": [t for t in tags_data if t in ["Equity", "Fixed Income", "Commodities", "FX", "Crypto"]],
+            "e_d": [t for t in tags_data if t in ["Emerging", "Developed"]],
+            "region": [t for t in tags_data if t in ["Asia Pacific", "Europe", "Americas", "Middle East", "Africa"]],
+            "country": [t for t in tags_data if t not in ["Equity", "Fixed Income", "Commodities", "FX", "Crypto", "Emerging", "Developed", "Asia Pacific", "Europe", "Americas", "Middle East", "Africa"]],
+            "sector": [],
+            "trade": []
+        }
+    elif isinstance(tags_data, dict):
+        # Ya tiene estructura, solo agregar counterpart si no existe
+        if "counterpart" not in tags_data:
+            tags_data["counterpart"] = counterpart
+        
+        # Asegurar que todas las categorías existen
+        for key in ["asset_class", "e_d", "region", "country", "sector", "trade"]:
+            if key not in tags_data:
+                tags_data[key] = []
+        
+        return tags_data
+    else:
+        # Valores por defecto
+        return {
+            "counterpart": counterpart,
+            "asset_class": [],
+            "e_d": [],
+            "region": [],
+            "country": [],
+            "sector": [],
+            "trade": []
+        }
+
+def load_tags_from_json():
+    """Carga tags desde tags.json y los inserta en la BD"""
+    print_section("CARGANDO TAGS DESDE JSON")
+    
+    tags_file = MOCK_DATA_DIR / "tags" / "tags.json"
+    
+    if not tags_file.exists():
+        print(f"⚠️  No se encontró {tags_file}")
+        print("   Creando tags básicos por defecto...")
+        return load_default_tags()
+    
+    try:
+        tags_data = load_json_file(tags_file)
+        db = DuckDBClient()
+        
+        total_inserted = 0
+        
+        # Iterar por categorías
+        for category, tag_list in tags_data.items():
+            print(f"\n📂 Categoría: {category}")
+            
+            for tag_name in tag_list:
+                tag_id = str(uuid4())
+                try:
+                    db.insert_tag(tag_id, tag_name, category)
+                    total_inserted += 1
+                    print(f"   ✓ {tag_name}")
+                except Exception as e:
+                    print(f"   ⚠️  Error al insertar {tag_name}: {str(e)}")
+        
+        db.close()
+        
+        print(f"\n✅ Total tags insertados: {total_inserted}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error cargando tags: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return False
+
+def load_default_tags():
+    """Carga tags por defecto si no existe tags.json"""
+    db = DuckDBClient()
+    
+    default_tags = {
+        "counterpart": ["Goldman Sachs", "JP Morgan", "Morgan Stanley", "Citigroup"],
+        "asset_class": ["Equity", "Fixed Income", "Commodities", "FX", "Crypto"],
+        "e_d": ["Emerging", "Developed"],
+        "region": ["Asia Pacific", "Europe", "Americas", "Middle East", "Africa"],
+        "country": ["Japan", "USA", "China", "Germany", "Brazil"],
+        "sector": ["Technology", "Finance", "Healthcare", "Energy", "Consumer"],
+        "trade": ["Long", "Short", "Neutral", "Pair Trade"]
+    }
+    
+    total_inserted = 0
+    
+    for category, tag_list in default_tags.items():
+        for tag_name in tag_list:
+            tag_id = str(uuid4())
+            try:
+                db.insert_tag(tag_id, tag_name, category)
+                total_inserted += 1
+            except Exception as e:
+                print(f"   ⚠️  Error: {str(e)}")
+    
+    db.close()
+    
+    print(f"✅ Tags por defecto insertados: {total_inserted}")
+    return True
+
+def load_mock_extractions():
+    """
+    Carga extractions desde mock_data combinando summary + trade
+    """
+    print_section("CARGANDO RESEARCH EXTRACTIONS")
     
     summary_dir = MOCK_DATA_DIR / "summary"
     trade_dir = MOCK_DATA_DIR / "trade"
@@ -78,7 +252,6 @@ def load_mock_data_direct():
     
     print(f"\n📂 Encontrados {len(summary_files)} archivos de summary")
     
-    # Conectar a la BD directamente
     db = DuckDBClient()
     
     loaded_count = 0
@@ -98,202 +271,284 @@ def load_mock_data_direct():
             model = parts[1].upper() if len(parts) > 1 else "Unknown"
             
             # Validar fecha
-            raw_date = summary_data.get("date", "")
-            invalid_dates = [
-                "Información no disponible", 
-                "Fecha no disponible", 
-                "No disponible",
-                "N/A",
-                ""
-            ]
+            valid_date = parse_date(summary_data.get("date", ""))
             
-            if not raw_date or raw_date in invalid_dates:
-                valid_date = date.today().isoformat()
-            else:
-                try:
-                    if isinstance(raw_date, str) and len(raw_date) == 10:
-                        date.fromisoformat(raw_date)
-                        valid_date = raw_date
-                    else:
-                        valid_date = date.today().isoformat()
-                except (ValueError, TypeError):
-                    valid_date = date.today().isoformat()
+            # Convertir summary a BulletPoints
+            summary_bulletpoints = convert_summary_to_bulletpoints(
+                summary_data.get("summary", "")
+            )
             
-            # Preparar datos
-            extraction_data = {
-                "title": f"Análisis {topic} - Modelo {model}",
-                "summary": summary_data.get("summary", ""),
-                "date": valid_date,
-                "tags": summary_data.get("tags", []),
-                "pros": [summary_data.get("pros", "")] if isinstance(summary_data.get("pros"), str) else summary_data.get("pros", []),
-                "cons": [summary_data.get("cons", "")] if isinstance(summary_data.get("cons"), str) else summary_data.get("cons", []),
-                "authors": summary_data.get("authors", [])
-            }
+            # Normalizar tags
+            tags_normalized = normalize_tags_structure(
+                summary_data.get("tags", []),
+                counterpart="Goldman Sachs"  # Puedes extraer esto del archivo si existe
+            )
             
-            # Insertar data extraction
-            extraction_result = db.insert_data_extraction(extraction_data)
-            extraction_id = extraction_result["id"]
-            print(f"  ✓ Data Extraction creado: {extraction_data['title']} (ID: {extraction_id})")
+            # Normalizar pros/cons
+            pros = summary_data.get("pros", [])
+            if isinstance(pros, str):
+                pros = [pros] if pros else []
             
-            # Cargar trade ideas si existen
+            cons = summary_data.get("cons", [])
+            if isinstance(cons, str):
+                cons = [cons] if cons else []
+            
+            # Procesar trade ideas
+            trade_ideas = []
             trade_file = trade_dir / summary_file.name.replace("-summary.json", "-trade.json")
             
             if trade_file.exists():
                 trade_data = load_json_file(trade_file)
-                trade_ideas = trade_data.get("tradeIdeas", [])
+                raw_trade_ideas = trade_data.get("tradeIdeas", [])
                 
-                for idx, idea in enumerate(trade_ideas, 1):
-                    idea_data = {
-                        "recommendation": idea.get("recommendation", ""),
-                        "summary": idea.get("summary", ""),
-                        "conviction": idea.get("conviction", 5),
-                        "pros": idea.get("pros", []),
-                        "cons": idea.get("cons", []),
-                        "data_extraction_id": extraction_id
-                    }
+                print(f"  📊 Encontradas {len(raw_trade_ideas)} trade ideas")
+                
+                for idx, idea in enumerate(raw_trade_ideas, 1):
+                    # Convertir trade summary a BulletPoints
+                    trade_summary_bp = convert_trade_summary_to_bulletpoints(
+                        idea.get("summary", "")
+                    )
                     
-                    db.insert_trade_idea(idea_data)
-                    print(f"    ✓ Trade Idea {idx} creada (Convicción: {idea_data['conviction']}/10)")
+                    # Normalizar pros/cons de trade
+                    trade_pros = idea.get("pros", [])
+                    if isinstance(trade_pros, str):
+                        trade_pros = [trade_pros] if trade_pros else []
+                    
+                    trade_cons = idea.get("cons", [])
+                    if isinstance(trade_cons, str):
+                        trade_cons = [trade_cons] if trade_cons else []
+                    
+                    trade_ideas.append({
+                        "recommendation": idea.get("recommendation", ""),
+                        "summary": trade_summary_bp,
+                        "conviction": idea.get("conviction", 5),
+                        "pros": trade_pros,
+                        "cons": trade_cons
+                    })
+                    
+                    print(f"    ✓ Trade Idea {idx}: {idea.get('recommendation', 'N/A')[:50]}... (Convicción: {idea.get('conviction', 5)}/10)")
             else:
-                print(f"  ⚠ No se encontró archivo de trade: {trade_file.name}")
+                print(f"  ⚠️  No se encontró archivo de trade: {trade_file.name}")
             
-            loaded_count += 1
+            # Crear extraction completa
+            extraction_data = {
+                "id": str(uuid4()),
+                "title": f"Análisis {topic} - Modelo {model}",
+                "published_date": valid_date,
+                "authors": summary_data.get("authors", ["Analyst Team"]),
+                "summary": summary_bulletpoints,
+                "tags": tags_normalized,
+                "pros": pros,
+                "cons": cons,
+                "trade_ideas": trade_ideas,
+                "suggested_tags": [],  # Vacío por ahora
+                "created_at": datetime.now()
+            }
+            
+            # Insertar en BD
+            result = db.insert_extraction(extraction_data)
+            
+            if result:
+                print(f"  ✅ Extraction creada: {extraction_data['title']}")
+                print(f"     • ID: {result['id']}")
+                print(f"     • Fecha: {valid_date}")
+                print(f"     • Bullet Points: {len(summary_bulletpoints)}")
+                print(f"     • Trade Ideas: {len(trade_ideas)}")
+                loaded_count += 1
+            else:
+                print(f"  ❌ Error al crear extraction")
+                error_count += 1
             
         except Exception as e:
-            print(f"  ❌ Error procesando {summary_file.name}: {e}")
+            print(f"  ❌ Error procesando {summary_file.name}: {str(e)}")
             import traceback
             print(traceback.format_exc())
             error_count += 1
     
-    # Cerrar conexión
-    db.con.close()
+    db.close()
     
     print(f"\n{'='*70}")
-    print(f"✓ Procesados: {loaded_count} archivos")
+    print(f"✅ Procesados exitosamente: {loaded_count} archivos")
     if error_count > 0:
-        print(f"⚠ Errores: {error_count} archivos")
+        print(f"⚠️  Errores: {error_count} archivos")
     
     return True
 
 def show_statistics():
-    """Muestra estadísticas de los datos cargados usando DuckDBClient"""
+    """Muestra estadísticas de los datos cargados"""
     print_section("ESTADÍSTICAS DE DATOS CARGADOS")
     
     try:
-        db = DuckDBClient(read_only=True)
+        db = DuckDBClient()
         
-        # Total de data extractions
-        result = db.execute("SELECT COUNT(*) as total FROM data_extraction_responses")
+        # Total de extractions
+        result = db.execute("SELECT COUNT(*) as total FROM research_extractions", [])
         total_extractions = result[0]["total"] if result else 0
-        print(f"📊 Total Data Extractions: {total_extractions}")
+        print(f"📊 Total Research Extractions: {total_extractions}")
         
-        # Total de trade ideas
-        result = db.execute("SELECT COUNT(*) as total FROM trade_ideas")
-        total_ideas = result[0]["total"] if result else 0
-        print(f"💡 Total Trade Ideas: {total_ideas}")
+        # Total de tags
+        result = db.execute("SELECT COUNT(*) as total FROM tags", [])
+        total_tags = result[0]["total"] if result else 0
+        print(f"🏷️  Total Tags: {total_tags}")
         
-        # Distribución por convicción
+        # Total de trade ideas (sin json_array_elements - usar LENGTH)
         result = db.execute("""
-            SELECT conviction, COUNT(*) as count
-            FROM trade_ideas
-            GROUP BY conviction
-            ORDER BY conviction
-        """)
+            SELECT 
+                SUM(json_array_length(trade_ideas)) as total_ideas
+            FROM research_extractions
+        """, [])
+        
+        total_ideas = result[0]["total_ideas"] if result and result[0]["total_ideas"] else 0
+        print(f"💡 Total Trade Ideas (anidadas): {total_ideas}")
+        
+        # Distribución por convicción (simplificada sin unnest)
+        print(f"\n📈 Trade Ideas por Extraction:")
+        result = db.execute("""
+            SELECT 
+                title,
+                json_array_length(trade_ideas) as trade_count
+            FROM research_extractions
+            WHERE json_array_length(trade_ideas) > 0
+            ORDER BY trade_count DESC
+        """, [])
         
         if result:
-            print(f"\n📈 Distribución por Convicción:")
             for item in result:
-                conviction = item["conviction"]
-                count = item["count"]
-                bar = "█" * count
-                print(f"   Convicción {conviction}: {bar} ({count})")
+                bar = "█" * int(item['trade_count'])
+                print(f"   {item['title'][:40]:40} {bar} ({item['trade_count']})")
         
-        # Algunos ejemplos de datos
-        print(f"\n📋 Ejemplos de Data Extractions:")
-        result = db.execute("SELECT title, date FROM data_extraction_responses LIMIT 3")
+        # Tags más usados
+        print(f"\n🏷️  Top 5 Tags por Categoría:")
+        result = db.execute("""
+            SELECT 
+                t.category,
+                t.name,
+                COUNT(DISTINCT et.extraction_id) as usage_count
+            FROM tags t
+            JOIN extraction_tags et ON t.id = et.tag_id
+            GROUP BY t.category, t.name
+            ORDER BY t.category, usage_count DESC
+        """, [])
+        
+        if result:
+            current_category = None
+            count = 0
+            for item in result:
+                if item["category"] != current_category:
+                    current_category = item["category"]
+                    count = 0
+                    print(f"\n   📂 {current_category}:")
+                
+                if count < 5:
+                    print(f"      • {item['name']}: {item['usage_count']} usos")
+                    count += 1
+        
+        # Ejemplos de extractions
+        print(f"\n📋 Ejemplos de Research Extractions:")
+        result = db.execute("""
+            SELECT title, published_date, 
+                   json_array_length(trade_ideas) as trade_count
+            FROM research_extractions 
+            LIMIT 3
+        """, [])
+        
         if result:
             for item in result:
-                print(f"   • {item['title']} ({item['date']})")
+                print(f"   • {item['title']}")
+                print(f"     Fecha: {item['published_date']} | Trade Ideas: {item['trade_count']}")
         
-        db.con.close()
+        db.close()
         
     except Exception as e:
         print(f"⚠️  Error al obtener estadísticas: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
-def verify_foreign_keys():
-    """Verifica la integridad referencial"""
-    print_section("VERIFICANDO INTEGRIDAD REFERENCIAL")
+def verify_data_integrity():
+    """Verifica la integridad de los datos cargados"""
+    print_section("VERIFICANDO INTEGRIDAD DE DATOS")
     
     try:
-        db = DuckDBClient(read_only=True)
+        db = DuckDBClient()
         
-        # Verificar que todas las trade ideas tengan un data_extraction_id válido
-        query = """
-            SELECT COUNT(*) as orphans
-            FROM trade_ideas ti
-            LEFT JOIN data_extraction_responses der ON ti.data_extraction_id = der.id
-            WHERE der.id IS NULL
-        """
+        # 1. Verificar que todos los extractions tengan tags
+        result = db.execute("""
+            SELECT COUNT(*) as count
+            FROM research_extractions
+            WHERE json_extract(tags, '$.counterpart') IS NULL
+        """, [])
         
-        result = db.execute(query)
-        if result:
-            orphans = result[0]["orphans"]
-            if orphans == 0:
-                print("✓ Todas las Trade Ideas tienen un Data Extraction válido")
-            else:
-                print(f"⚠ Hay {orphans} Trade Ideas huérfanas (sin Data Extraction)")
+        no_counterpart = result[0]["count"] if result else 0
+        if no_counterpart == 0:
+            print("✅ Todos los extractions tienen counterpart")
+        else:
+            print(f"⚠️  {no_counterpart} extractions sin counterpart")
         
-        # Verificar constraints de convicción
-        query = """
-            SELECT COUNT(*) as invalid
-            FROM trade_ideas
-            WHERE conviction < 1 OR conviction > 10
-        """
+        # 2. Verificar convicción válida en trade ideas (sin json_array_elements)
+        result = db.execute("""
+            SELECT COUNT(*) as total_ideas
+            FROM research_extractions
+            WHERE json_array_length(trade_ideas) > 0
+        """, [])
         
-        result = db.execute(query)
-        if result:
-            invalid = result[0]["invalid"]
-            if invalid == 0:
-                print("✓ Todos los valores de convicción son válidos (1-10)")
-            else:
-                print(f"⚠ Hay {invalid} Trade Ideas con convicción inválida")
+        total_ideas = result[0]["total_ideas"] if result else 0
+        print(f"✅ Total extractions con trade ideas: {total_ideas}")
         
-        db.con.close()
-                
+        # 3. Verificar vínculos extraction-tags
+        result = db.execute("""
+            SELECT COUNT(DISTINCT extraction_id) as linked
+            FROM extraction_tags
+        """, [])
+        
+        linked = result[0]["linked"] if result else 0
+        
+        result = db.execute("SELECT COUNT(*) as total FROM research_extractions", [])
+        total = result[0]["total"] if result else 0
+        
+        if linked == total:
+            print(f"✅ Todos los {total} extractions tienen tags vinculados")
+        else:
+            print(f"⚠️  Solo {linked}/{total} extractions tienen tags vinculados")
+        
+        db.close()
+        
     except Exception as e:
-        print(f"⚠️  Error al verificar integridad: {str(e)}")
+        print(f"⚠️  Error verificando integridad: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 def main():
-    """Función principal"""
+    """Función principal de inicialización"""
     print("╔" + "═"*68 + "╗")
-    print("║" + " "*15 + "INICIALIZACIÓN DE BASE DE DATOS" + " "*21 + "║")
-    print("║" + " "*18 + "Mock BigQuery con DuckDB" + " "*25 + "║")
+    print("║" + " "*10 + "INICIALIZACIÓN MockBigQuery v3.0.0" + " "*24 + "║")
+    print("║" + " "*15 + "Research Extractions con Trade Ideas Anidados" + " "*8 + "║")
     print("╚" + "═"*68 + "╝")
     
-    # 1. Verificar si el servidor está corriendo
-    server_running = check_server()
+    print("\n⚠️  ADVERTENCIA:")
+    print("   Este script eliminará TODOS los datos existentes y recreará")
+    print("   la base de datos con la nueva estructura v3.0.0\n")
     
-    if server_running:
-        print("\n⚠️  ADVERTENCIA: El servidor está corriendo.")
-        print("   Por favor, detén el servidor (Ctrl+C en la terminal de main.py)")
-        print("   antes de ejecutar la inicialización.\n")
-        response = input("¿Detuviste el servidor? (s/n): ")
-        if response.lower() != 's':
-            print("❌ Inicialización cancelada")
-            sys.exit(1)
+    response = input("¿Deseas continuar? (s/n): ")
+    if response.lower() != 's':
+        print("❌ Inicialización cancelada")
+        sys.exit(0)
     
-    # 2. Limpiar y recrear tablas
+    # 1. Limpiar y recrear tablas
     if not drop_and_create_tables():
         print("\n❌ Error al crear tablas. Abortando.")
         sys.exit(1)
     
-    # 3. Cargar datos DIRECTAMENTE (sin API)
-    if not load_mock_data_direct():
-        print("\n❌ Error al cargar datos. Abortando.")
+    # 2. Cargar tags
+    if not load_tags_from_json():
+        print("\n⚠️  Continuando sin tags (se usarán valores por defecto)")
+    
+    # 3. Cargar extractions con trade ideas anidados
+    if not load_mock_extractions():
+        print("\n❌ Error al cargar extractions. Abortando.")
         sys.exit(1)
     
     # 4. Verificar integridad
-    verify_foreign_keys()
+    verify_data_integrity()
     
     # 5. Mostrar estadísticas
     show_statistics()
@@ -301,7 +556,14 @@ def main():
     # 6. Mensaje final
     print_section("✅ INICIALIZACIÓN COMPLETADA")
     print(f"""
-    🎉 Base de datos inicializada exitosamente!
+    🎉 Base de datos v3.0.0 inicializada exitosamente!
+    
+    Cambios importantes:
+    ✅ Tabla única: research_extractions
+    ✅ Trade ideas anidados (JSON)
+    ✅ Summary como List[BulletPoint]
+    ✅ Tags separados mantenidos
+    ✅ Suggested tags incluidos
     
     Ahora puedes iniciar el servidor:
     
@@ -311,11 +573,10 @@ def main():
     📡 API: {BASE_URL}
     📚 Documentación: {BASE_URL}/docs
     
-    Endpoints disponibles:
-    • GET  {BASE_URL}/api/data-extractions
-    • POST {BASE_URL}/api/data-extractions
-    • GET  {BASE_URL}/api/data-extractions/{{id}}/trade-ideas
-    • POST {BASE_URL}/api/trade-ideas
+    Endpoints principales:
+    • GET  {BASE_URL}/api/extractions
+    • POST {BASE_URL}/api/extractions
+    • GET  {BASE_URL}/api/extractions/{{id}}
     • POST {BASE_URL}/api/dashboard
     • GET  {BASE_URL}/api/tags
     """)
