@@ -13,6 +13,9 @@ from typing import List, Optional
 from uuid import UUID
 import os
 import uvicorn
+from datetime import datetime
+from pathlib import Path
+import json
 
 # ============================================================
 # CONFIGURACIÓN DE LA APP
@@ -288,6 +291,66 @@ def get_tag_categories():
     except Exception as e:
         print(f"❌ Error getting categories: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/dumpdata")
+def dump_data():
+    """
+    Exporta todas las extractions a JSON y las guarda en mock_data/extractions.json
+    
+    Returns:
+        - Información del dump realizado
+        - Total de registros exportados
+    """
+    try:
+        db = DuckDBClient()
+        
+        # Obtener todas las extractions
+        extractions = db.get_extractions()
+        
+        if not extractions:
+            raise HTTPException(
+                status_code=404, 
+                detail="No hay extractions en la base de datos para exportar"
+            )
+        
+        # Preparar data con metadata
+        dump_data = {
+            "exported_at": datetime.now().isoformat(),
+            "total": len(extractions),
+            "version": "3.0.0",
+            "extractions": extractions
+        }
+        
+        # Crear directorio si no existe
+        dump_dir = Path("mock_data")
+        dump_dir.mkdir(exist_ok=True)
+        
+        # Guardar archivo (SOBRESCRIBIR)
+        dump_file = dump_dir / "extractions.json"
+        
+        with open(dump_file, 'w', encoding='utf-8') as f:
+            json.dump(dump_data, f, indent=2, ensure_ascii=False, default=str)
+        
+        print(f"✅ Dump creado: {dump_file}")
+        print(f"📊 Total extractions exportadas: {len(extractions)}")
+        
+        db.close()
+        
+        return {
+            "status": "success",
+            "file": str(dump_file),
+            "total_extractions": len(extractions),
+            "exported_at": datetime.now().isoformat(),
+            "version": "3.0.0"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error dumping data: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al exportar datos: {str(e)}")
 
 # ============================================================
 # SERVIDOR

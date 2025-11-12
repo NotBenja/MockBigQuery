@@ -9,6 +9,7 @@ from uuid import uuid4
 
 BASE_URL = "http://localhost:9000"
 MOCK_DATA_DIR = Path("mock_data")
+EXTRACTIONS_FILE = MOCK_DATA_DIR / "extractions.json"
 
 def print_section(title: str):
     """Imprime una sección con formato"""
@@ -33,14 +34,12 @@ def drop_and_create_tables():
         except Exception as e:
             print(f"⚠️  Advertencia al eliminar tablas: {str(e)}")
         
-        # Recrear tablas (usando el método del constructor)
+        # Recrear tablas
         print("\n🔨 Recreando tablas nuevas...")
         db._initialize_database()
         print("✓ Tablas creadas exitosamente")
         
-        # Cerrar conexión
         db.close()
-        
         return True
         
     except Exception as e:
@@ -48,121 +47,6 @@ def drop_and_create_tables():
         import traceback
         print(traceback.format_exc())
         return False
-
-def load_json_file(filepath: Path) -> Dict[str, Any]:
-    """Carga un archivo JSON"""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def parse_date(raw_date: str) -> str:
-    """Valida y normaliza fechas"""
-    invalid_dates = [
-        "Información no disponible", 
-        "Fecha no disponible", 
-        "No disponible",
-        "N/A",
-        ""
-    ]
-    
-    if not raw_date or raw_date in invalid_dates:
-        return datetime.today().strftime("%Y-%m-%d")
-    
-    try:
-        if isinstance(raw_date, str) and len(raw_date) == 10:
-            datetime.fromisoformat(raw_date)
-            return raw_date
-        else:
-            return datetime.today().strftime("%Y-%m-%d")
-    except (ValueError, TypeError):
-        return datetime.today().strftime("%Y-%m-%d")
-
-def convert_summary_to_bulletpoints(summary: Any) -> list:
-    """
-    Convierte el summary antiguo (string o lista de strings) 
-    al nuevo formato List[BulletPoint]
-    """
-    if isinstance(summary, str):
-        # Si es un string, crear un solo bullet point
-        return [{
-            "title": "Resumen Principal",
-            "body": summary
-        }]
-    elif isinstance(summary, list):
-        # Si es lista, convertir cada elemento
-        bullet_points = []
-        for idx, item in enumerate(summary, 1):
-            if isinstance(item, str):
-                bullet_points.append({
-                    "title": f"Punto {idx}",
-                    "body": item
-                })
-            elif isinstance(item, dict):
-                # Ya está en formato correcto
-                bullet_points.append(item)
-        return bullet_points
-    else:
-        return []
-
-def convert_trade_summary_to_bulletpoints(trade_summary: Any) -> list:
-    """
-    Convierte el summary de TradeIdea al formato List[BulletPoint]
-    """
-    if isinstance(trade_summary, str):
-        return [{
-            "title": "Análisis",
-            "body": trade_summary
-        }]
-    elif isinstance(trade_summary, list):
-        bullet_points = []
-        for idx, item in enumerate(trade_summary, 1):
-            if isinstance(item, str):
-                bullet_points.append({
-                    "title": f"Punto {idx}",
-                    "body": item
-                })
-            elif isinstance(item, dict):
-                bullet_points.append(item)
-        return bullet_points
-    else:
-        return []
-
-def normalize_tags_structure(tags_data: Any, counterpart: str = "Goldman Sachs") -> Dict[str, Any]:
-    """
-    Convierte tags antiguos al formato nuevo Tags(ContentExtractionTags)
-    """
-    if isinstance(tags_data, list):
-        # Tags antiguos como lista plana -> distribuir en categorías
-        return {
-            "counterpart": counterpart,
-            "asset_class": [t for t in tags_data if t in ["Equity", "Fixed Income", "Commodities", "FX", "Crypto"]],
-            "e_d": [t for t in tags_data if t in ["Emerging", "Developed"]],
-            "region": [t for t in tags_data if t in ["Asia Pacific", "Europe", "Americas", "Middle East", "Africa"]],
-            "country": [t for t in tags_data if t not in ["Equity", "Fixed Income", "Commodities", "FX", "Crypto", "Emerging", "Developed", "Asia Pacific", "Europe", "Americas", "Middle East", "Africa"]],
-            "sector": [],
-            "trade": []
-        }
-    elif isinstance(tags_data, dict):
-        # Ya tiene estructura, solo agregar counterpart si no existe
-        if "counterpart" not in tags_data:
-            tags_data["counterpart"] = counterpart
-        
-        # Asegurar que todas las categorías existen
-        for key in ["asset_class", "e_d", "region", "country", "sector", "trade"]:
-            if key not in tags_data:
-                tags_data[key] = []
-        
-        return tags_data
-    else:
-        # Valores por defecto
-        return {
-            "counterpart": counterpart,
-            "asset_class": [],
-            "e_d": [],
-            "region": [],
-            "country": [],
-            "sector": [],
-            "trade": []
-        }
 
 def load_tags_from_json():
     """Carga tags desde tags.json y los inserta en la BD"""
@@ -176,9 +60,10 @@ def load_tags_from_json():
         return load_default_tags()
     
     try:
-        tags_data = load_json_file(tags_file)
-        db = DuckDBClient()
+        with open(tags_file, 'r', encoding='utf-8') as f:
+            tags_data = json.load(f)
         
+        db = DuckDBClient()
         total_inserted = 0
         
         # Iterar por categorías
@@ -195,7 +80,6 @@ def load_tags_from_json():
                     print(f"   ⚠️  Error al insertar {tag_name}: {str(e)}")
         
         db.close()
-        
         print(f"\n✅ Total tags insertados: {total_inserted}")
         return True
         
@@ -231,148 +115,91 @@ def load_default_tags():
                 print(f"   ⚠️  Error: {str(e)}")
     
     db.close()
-    
     print(f"✅ Tags por defecto insertados: {total_inserted}")
     return True
 
-def load_mock_extractions():
+def load_extractions_from_dump():
     """
-    Carga extractions desde mock_data combinando summary + trade
+    Carga extractions desde mock_data/extractions.json (nuevo formato)
     """
-    print_section("CARGANDO RESEARCH EXTRACTIONS")
+    print_section("CARGANDO EXTRACTIONS DESDE DUMP")
     
-    summary_dir = MOCK_DATA_DIR / "summary"
-    trade_dir = MOCK_DATA_DIR / "trade"
-    
-    summary_files = list(summary_dir.glob("*.json"))
-    
-    if not summary_files:
-        print("❌ No se encontraron archivos mock en mock_data/summary/")
+    if not EXTRACTIONS_FILE.exists():
+        print(f"❌ No se encontró el archivo: {EXTRACTIONS_FILE}")
+        print("\n💡 Para generar el dump, ejecuta:")
+        print("   1. Inicia el servidor: python main.py")
+        print("   2. Llama al endpoint: GET http://localhost:9000/api/dumpdata")
         return False
     
-    print(f"\n📂 Encontrados {len(summary_files)} archivos de summary")
-    
-    db = DuckDBClient()
-    
-    loaded_count = 0
-    error_count = 0
-    
-    for summary_file in sorted(summary_files):
-        print(f"\n{'─'*70}")
-        print(f"📄 Procesando: {summary_file.name}")
+    try:
+        # Cargar dump
+        print(f"📂 Cargando datos desde: {EXTRACTIONS_FILE}")
+        with open(EXTRACTIONS_FILE, 'r', encoding='utf-8') as f:
+            dump_data = json.load(f)
         
-        try:
-            # Cargar summary
-            summary_data = load_json_file(summary_file)
-            
-            # Extraer información del nombre del archivo
-            parts = summary_file.name.replace('-summary.json', '').split('-')
-            topic = parts[0].title()
-            model = parts[1].upper() if len(parts) > 1 else "Unknown"
-            
-            # Validar fecha
-            valid_date = parse_date(summary_data.get("date", ""))
-            
-            # Convertir summary a BulletPoints
-            summary_bulletpoints = convert_summary_to_bulletpoints(
-                summary_data.get("summary", "")
-            )
-            
-            # Normalizar tags
-            tags_normalized = normalize_tags_structure(
-                summary_data.get("tags", []),
-                counterpart="Goldman Sachs"  # Puedes extraer esto del archivo si existe
-            )
-            
-            # Normalizar pros/cons
-            pros = summary_data.get("pros", [])
-            if isinstance(pros, str):
-                pros = [pros] if pros else []
-            
-            cons = summary_data.get("cons", [])
-            if isinstance(cons, str):
-                cons = [cons] if cons else []
-            
-            # Procesar trade ideas
-            trade_ideas = []
-            trade_file = trade_dir / summary_file.name.replace("-summary.json", "-trade.json")
-            
-            if trade_file.exists():
-                trade_data = load_json_file(trade_file)
-                raw_trade_ideas = trade_data.get("tradeIdeas", [])
+        extractions = dump_data.get("extractions", [])
+        total = dump_data.get("total", len(extractions))
+        version = dump_data.get("version", "unknown")
+        exported_at = dump_data.get("exported_at", "unknown")
+        
+        print(f"📊 Información del dump:")
+        print(f"   • Total extractions: {total}")
+        print(f"   • Versión: {version}")
+        print(f"   • Exportado el: {exported_at}")
+        
+        if not extractions:
+            print("❌ No hay extractions en el dump")
+            return False
+        
+        # Conectar a BD
+        db = DuckDBClient()
+        
+        loaded_count = 0
+        error_count = 0
+        
+        print(f"\n{'─'*70}")
+        print("Insertando extractions en la base de datos...\n")
+        
+        for idx, extraction in enumerate(extractions, 1):
+            try:
+                # Insertar extraction (mantiene el ID original del dump)
+                result = db.insert_extraction(extraction)
                 
-                print(f"  📊 Encontradas {len(raw_trade_ideas)} trade ideas")
+                if result:
+                    title = extraction.get("title", "Sin título")
+                    trade_count = len(extraction.get("trade_ideas", []))
+                    
+                    print(f"✅ [{idx}/{total}] {title[:50]}")
+                    print(f"   • ID: {result['id']}")
+                    print(f"   • Fecha: {extraction.get('published_date', 'N/A')}")
+                    print(f"   • Trade Ideas: {trade_count}")
+                    
+                    loaded_count += 1
+                else:
+                    print(f"❌ [{idx}/{total}] Error al insertar extraction")
+                    error_count += 1
                 
-                for idx, idea in enumerate(raw_trade_ideas, 1):
-                    # Convertir trade summary a BulletPoints
-                    trade_summary_bp = convert_trade_summary_to_bulletpoints(
-                        idea.get("summary", "")
-                    )
-                    
-                    # Normalizar pros/cons de trade
-                    trade_pros = idea.get("pros", [])
-                    if isinstance(trade_pros, str):
-                        trade_pros = [trade_pros] if trade_pros else []
-                    
-                    trade_cons = idea.get("cons", [])
-                    if isinstance(trade_cons, str):
-                        trade_cons = [trade_cons] if trade_cons else []
-                    
-                    trade_ideas.append({
-                        "recommendation": idea.get("recommendation", ""),
-                        "summary": trade_summary_bp,
-                        "conviction": idea.get("conviction", 5),
-                        "pros": trade_pros,
-                        "cons": trade_cons
-                    })
-                    
-                    print(f"    ✓ Trade Idea {idx}: {idea.get('recommendation', 'N/A')[:50]}... (Convicción: {idea.get('conviction', 5)}/10)")
-            else:
-                print(f"  ⚠️  No se encontró archivo de trade: {trade_file.name}")
-            
-            # Crear extraction completa
-            extraction_data = {
-                "id": str(uuid4()),
-                "title": f"Análisis {topic} - Modelo {model}",
-                "published_date": valid_date,
-                "authors": summary_data.get("authors", ["Analyst Team"]),
-                "summary": summary_bulletpoints,
-                "tags": tags_normalized,
-                "pros": pros,
-                "cons": cons,
-                "trade_ideas": trade_ideas,
-                "suggested_tags": [],  # Vacío por ahora
-                "created_at": datetime.now()
-            }
-            
-            # Insertar en BD
-            result = db.insert_extraction(extraction_data)
-            
-            if result:
-                print(f"  ✅ Extraction creada: {extraction_data['title']}")
-                print(f"     • ID: {result['id']}")
-                print(f"     • Fecha: {valid_date}")
-                print(f"     • Bullet Points: {len(summary_bulletpoints)}")
-                print(f"     • Trade Ideas: {len(trade_ideas)}")
-                loaded_count += 1
-            else:
-                print(f"  ❌ Error al crear extraction")
+            except Exception as e:
+                print(f"❌ [{idx}/{total}] Error: {str(e)}")
                 error_count += 1
-            
-        except Exception as e:
-            print(f"  ❌ Error procesando {summary_file.name}: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
-            error_count += 1
-    
-    db.close()
-    
-    print(f"\n{'='*70}")
-    print(f"✅ Procesados exitosamente: {loaded_count} archivos")
-    if error_count > 0:
-        print(f"⚠️  Errores: {error_count} archivos")
-    
-    return True
+        
+        db.close()
+        
+        print(f"\n{'='*70}")
+        print(f"✅ Procesados exitosamente: {loaded_count}/{total}")
+        if error_count > 0:
+            print(f"⚠️  Errores: {error_count}/{total}")
+        
+        return True
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ Error al parsear JSON: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"❌ Error cargando extractions: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return False
 
 def show_statistics():
     """Muestra estadísticas de los datos cargados"""
@@ -391,7 +218,7 @@ def show_statistics():
         total_tags = result[0]["total"] if result else 0
         print(f"🏷️  Total Tags: {total_tags}")
         
-        # Total de trade ideas (sin json_array_elements - usar LENGTH)
+        # Total de trade ideas
         result = db.execute("""
             SELECT 
                 SUM(json_array_length(trade_ideas)) as total_ideas
@@ -401,7 +228,7 @@ def show_statistics():
         total_ideas = result[0]["total_ideas"] if result and result[0]["total_ideas"] else 0
         print(f"💡 Total Trade Ideas (anidadas): {total_ideas}")
         
-        # Distribución por convicción (simplificada sin unnest)
+        # Trade Ideas por Extraction
         print(f"\n📈 Trade Ideas por Extraction:")
         result = db.execute("""
             SELECT 
@@ -443,26 +270,10 @@ def show_statistics():
                     print(f"      • {item['name']}: {item['usage_count']} usos")
                     count += 1
         
-        # Ejemplos de extractions
-        print(f"\n📋 Ejemplos de Research Extractions:")
-        result = db.execute("""
-            SELECT title, published_date, 
-                   json_array_length(trade_ideas) as trade_count
-            FROM research_extractions 
-            LIMIT 3
-        """, [])
-        
-        if result:
-            for item in result:
-                print(f"   • {item['title']}")
-                print(f"     Fecha: {item['published_date']} | Trade Ideas: {item['trade_count']}")
-        
         db.close()
         
     except Exception as e:
         print(f"⚠️  Error al obtener estadísticas: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
 
 def verify_data_integrity():
     """Verifica la integridad de los datos cargados"""
@@ -471,7 +282,7 @@ def verify_data_integrity():
     try:
         db = DuckDBClient()
         
-        # 1. Verificar que todos los extractions tengan tags
+        # 1. Verificar counterpart
         result = db.execute("""
             SELECT COUNT(*) as count
             FROM research_extractions
@@ -484,17 +295,7 @@ def verify_data_integrity():
         else:
             print(f"⚠️  {no_counterpart} extractions sin counterpart")
         
-        # 2. Verificar convicción válida en trade ideas (sin json_array_elements)
-        result = db.execute("""
-            SELECT COUNT(*) as total_ideas
-            FROM research_extractions
-            WHERE json_array_length(trade_ideas) > 0
-        """, [])
-        
-        total_ideas = result[0]["total_ideas"] if result else 0
-        print(f"✅ Total extractions con trade ideas: {total_ideas}")
-        
-        # 3. Verificar vínculos extraction-tags
+        # 2. Verificar vínculos extraction-tags
         result = db.execute("""
             SELECT COUNT(DISTINCT extraction_id) as linked
             FROM extraction_tags
@@ -514,19 +315,17 @@ def verify_data_integrity():
         
     except Exception as e:
         print(f"⚠️  Error verificando integridad: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
 
 def main():
     """Función principal de inicialización"""
     print("╔" + "═"*68 + "╗")
     print("║" + " "*10 + "INICIALIZACIÓN MockBigQuery v3.0.0" + " "*24 + "║")
-    print("║" + " "*15 + "Research Extractions con Trade Ideas Anidados" + " "*8 + "║")
+    print("║" + " "*15 + "Carga desde extractions.json" + " "*25 + "║")
     print("╚" + "═"*68 + "╝")
     
     print("\n⚠️  ADVERTENCIA:")
-    print("   Este script eliminará TODOS los datos existentes y recreará")
-    print("   la base de datos con la nueva estructura v3.0.0\n")
+    print("   Este script eliminará TODOS los datos existentes y cargará")
+    print("   las extractions desde mock_data/extractions.json\n")
     
     response = input("¿Deseas continuar? (s/n): ")
     if response.lower() != 's':
@@ -540,10 +339,10 @@ def main():
     
     # 2. Cargar tags
     if not load_tags_from_json():
-        print("\n⚠️  Continuando sin tags (se usarán valores por defecto)")
+        print("\n⚠️  Continuando sin tags")
     
-    # 3. Cargar extractions con trade ideas anidados
-    if not load_mock_extractions():
+    # 3. Cargar extractions desde dump
+    if not load_extractions_from_dump():
         print("\n❌ Error al cargar extractions. Abortando.")
         sys.exit(1)
     
@@ -556,14 +355,9 @@ def main():
     # 6. Mensaje final
     print_section("✅ INICIALIZACIÓN COMPLETADA")
     print(f"""
-    🎉 Base de datos v3.0.0 inicializada exitosamente!
+    🎉 Base de datos v3.0.0 inicializada exitosamente desde dump!
     
-    Cambios importantes:
-    ✅ Tabla única: research_extractions
-    ✅ Trade ideas anidados (JSON)
-    ✅ Summary como List[BulletPoint]
-    ✅ Tags separados mantenidos
-    ✅ Suggested tags incluidos
+    📂 Archivo usado: mock_data/extractions.json
     
     Ahora puedes iniciar el servidor:
     
@@ -573,12 +367,8 @@ def main():
     📡 API: {BASE_URL}
     📚 Documentación: {BASE_URL}/docs
     
-    Endpoints principales:
-    • GET  {BASE_URL}/api/extractions
-    • POST {BASE_URL}/api/extractions
-    • GET  {BASE_URL}/api/extractions/{{id}}
-    • POST {BASE_URL}/api/dashboard
-    • GET  {BASE_URL}/api/tags
+    Para actualizar el dump:
+    🔄 GET {BASE_URL}/api/dumpdata
     """)
 
 if __name__ == "__main__":
