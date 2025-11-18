@@ -58,7 +58,8 @@ class DuckDBClient:
                 cons JSON,
                 trade_ideas JSON,
                 suggested_tags JSON,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TIMESTAMP
             )
         """)
         
@@ -339,6 +340,24 @@ class DuckDBClient:
             return None
     
     # ============================================================
+    # MÉTODOS DE ACTUALIZACIÓN
+    # ============================================================
+
+    def update_extraction_deleted_at(self, extraction_id: str, deleted_at: Optional[str]):
+        query = """
+            UPDATE research_extractions
+            SET deleted_at = ?
+            WHERE id = ?
+        """
+
+        try:
+            self.conn.execute(query, [deleted_at, extraction_id])
+            return True
+        except Exception as e:
+            print("DB error updating deleted_at:", e)
+            return False
+    
+    # ============================================================
     # MÉTODOS DE ESTADÍSTICAS
     # ============================================================
     
@@ -615,6 +634,7 @@ class DuckDBClient:
                     result[field] = []
         
         return result
+    
     
     def close(self):
         """Cierra conexión a DB"""
