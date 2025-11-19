@@ -1,6 +1,6 @@
 {
-  "exported_at": "2025-11-12T04:36:02.077469",
-  "total": 31,
+  "exported_at": "2025-11-19T19:35:00.328654",
+  "total": 29,
   "version": "3.0.0",
   "extractions": [
     {
@@ -257,7 +257,9 @@
           ],
           "cons": [
             "El movimiento bajista sostenido en los rendimientos es poco probable sin la confirmación de datos laborales de primer nivel, actualmente retrasados por el cierre del gobierno."
-          ]
+          ],
+          "id": "5a48ed3d-9714-42a4-93b6-1a7ab86e9de8",
+          "deleted_at": null
         },
         {
           "recommendation": "Iniciar posiciones largas en swaps de inflación a 1 año, con cobertura de energía.",
@@ -276,7 +278,9 @@
           "cons": [
             "El traspaso de las tarifas a los precios ha sido más lento de lo esperado y podría seguir siéndolo.",
             "Una desescalada en las tensiones comerciales o un fallo de la Corte Suprema contra las tarifas IEEPA podría pesar sobre los breakevens."
-          ]
+          ],
+          "id": "0ce29d14-d5cb-4d1a-8ea5-9070ded20c9f",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener sesgo de aplanamiento de la curva de swap spreads, iniciando 'flatteners' 2s/3s.",
@@ -294,7 +298,9 @@
           "cons": [
             "Comentarios de la Fed (como los de Lorie Logan) que sugieren apoyo a los mercados de financiamiento pueden ampliar los spreads en paralelo, contrarrestando el efecto de aplanamiento.",
             "El anuncio del 'refunding' trimestral podría ser un viento en contra para los spreads."
-          ]
+          ],
+          "id": "2a64413a-1854-4c1e-853f-d75745e40337",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener sobreponderación (Overweight) en la deuda soberana de Argentina.",
@@ -314,7 +320,9 @@
           "cons": [
             "Riesgo de ejecución de las reformas estructurales.",
             "Historial de volatilidad política y económica del país."
-          ]
+          ],
+          "id": "5f11fd47-ae6a-4f93-b260-69d914e0aecc",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -454,7 +462,9 @@
             "Una Fed más 'hawkish' de lo esperado podría contrarrestar el sentimiento positivo.",
             "Preocupaciones latentes sobre el crecimiento global podrían resurgir, afectando negativamente el apetito por el riesgo.",
             "El posicionamiento en renta variable de EE.UU. ya mostraba niveles alcistas, lo que podría limitar el potencial de subida."
-          ]
+          ],
+          "id": "6e5d3fcb-d143-40a8-bf62-5f90feee65d8",
+          "deleted_at": null
         },
         {
           "recommendation": "Elevar exposición a Renta Variable Europea (STOXX 600) con nuevos objetivos de 575/580/595 a 3/6/12 meses.",
@@ -474,7 +484,9 @@
             "Riesgos geopolíticos en la región podrían afectar el sentimiento.",
             "Una desaceleración económica global podría impactar negativamente las proyecciones de utilidades.",
             "La política monetaria del BCE podría volverse más restrictiva si la inflación persiste."
-          ]
+          ],
+          "id": "dc9b9e33-cdfe-42e3-ace5-f0fa75e153a6",
+          "deleted_at": null
         },
         {
           "recommendation": "Mejorar la recomendación de la Renta Variable de India a Sobreponderar (OW).",
@@ -495,7 +507,9 @@
             "Riesgos inherentes a los mercados emergentes, como la volatilidad de la moneda y la inestabilidad política.",
             "Una desaceleración en el crecimiento global podría afectar la demanda de exportaciones indias.",
             "Posibles presiones inflacionarias podrían llevar a un endurecimiento de la política monetaria local."
-          ]
+          ],
+          "id": "2b69c6cf-6866-4185-9249-c1f37fa99812",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -598,7 +612,9 @@
             "El éxito de la parte cíclica de la cartera depende críticamente de que la economía evite una recesión y que la Fed efectivamente recorte las tasas como se espera.",
             "Un escenario de inflación más persistente de lo previsto podría forzar a la Fed a ser menos acomodaticia, afectando negativamente a ambos lados de la cartera 'barbell'.",
             "El informe no ofrece detalles sobre la selección de valores específicos dentro de los sectores recomendados, dejando la ejecución a discreción del inversor."
-          ]
+          ],
+          "id": "d4d66961-faec-439d-9445-e17a294f7180",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -703,7 +719,9 @@
             "El momento de la rotación depende de un ciclo de relajación de la Fed, cuyo inicio y magnitud son inciertos.",
             "La tesis requiere catalizadores como una reaceleración del crecimiento o una pausa en el gasto de capital de los hiperescaladores, que no están garantizados.",
             "Riesgos como una sobreinversión en centros de datos o problemas en el crédito privado podrían endurecer las condiciones financieras y afectar negativamente la tesis."
-          ]
+          ],
+          "id": "de15ad2c-aeb3-41ea-9d7c-6c2702191602",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener exposición al ecosistema de IA a corto plazo, pero gestionando activamente el riesgo y reciclando ganancias.",
@@ -727,7 +745,9 @@
             "El informe advierte que una porción creciente del mercado cotiza a múltiplos de ingresos muy elevados, lo que incrementa el riesgo de valoración.",
             "Si los retornos económicos de las inversiones en IA tardan en materializarse, las valoraciones de estas acciones podrían comprimirse rápidamente.",
             "Identificar el punto exacto para reducir el riesgo en acciones con movimientos verticales es extremadamente difícil y conlleva riesgo de sincronización."
-          ]
+          ],
+          "id": "798d8d58-386a-448d-a462-32243440125e",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -834,7 +854,9 @@
             "Las altas valoraciones de 'Big Tech' las hacen vulnerables a correcciones abruptas ante cambios en el sentimiento del mercado.",
             "La recuperación de los sectores de salud y energía no está garantizada y depende de factores específicos de cada industria.",
             "Una corrección amplia del mercado podría afectar negativamente a ambos lados de la estrategia 'barbell'."
-          ]
+          ],
+          "id": "c9d74e5b-565b-4d61-aa4f-be15c809d36b",
+          "deleted_at": null
         },
         {
           "recommendation": "Sobreponderar acciones del sector bancario.",
@@ -854,7 +876,9 @@
             "El entorno regulatorio podría cambiar dependiendo de los resultados políticos futuros.",
             "Una desaceleración económica más profunda de lo esperado afectaría negativamente la calidad de los activos y la demanda de crédito.",
             "Los bancos regionales todavía pueden enfrentar un mayor escrutinio y desconfianza tras la crisis de marzo de 2023."
-          ]
+          ],
+          "id": "f555d99f-02f0-414b-ae77-cd487c14e17c",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener posiciones en acciones de mineras de oro y en plata.",
@@ -874,7 +898,9 @@
             "Los precios de los metales preciosos pueden ser volátiles y son sensibles a los cambios en las expectativas de tasas de interés de la Fed.",
             "El rendimiento de las acciones mineras puede divergir del precio del metal debido a riesgos operativos, de gestión y de costos.",
             "Un fortalecimiento significativo del dólar estadounidense podría ejercer presión a la baja sobre los precios de los metales."
-          ]
+          ],
+          "id": "505f81d1-4f9b-4ef6-ade2-1139913dd757",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -983,7 +1009,9 @@
             "El modelo no captura factores cualitativos o noticias de última hora, como el impacto de aranceles en el sector automotriz o las preocupaciones sobre estándares de préstamo en el sector financiero.",
             "El rendimiento pasado no garantiza resultados futuros, y el rendimiento del modelo principal ha sido mediocre en el año en curso.",
             "Existe un riesgo de concentración no intencionado, ya que las selecciones pueden agruparse en los mismos macrosectores."
-          ]
+          ],
+          "id": "eeab1ada-6e02-4ce3-bd2f-c52f5f116936",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1087,7 +1115,9 @@
           "cons": [
             "Podría perderse un rally significativo en los bonos si la desinflación es más rápida de lo esperado o si la economía se debilita bruscamente.",
             "Podría tener un rendimiento inferior si los rendimientos reales aumentan más de lo previsto debido a la fortaleza económica."
-          ]
+          ],
+          "id": "7dbd122c-1913-4497-ba1f-84bd70cf6df0",
+          "deleted_at": null
         },
         {
           "recommendation": "Dentro de las carteras de Treasury, favorecer bonos nominales por sobre los TIPS.",
@@ -1106,7 +1136,9 @@
           "cons": [
             "Un crecimiento económico persistentemente robusto podría llevar al mercado a reevaluar al alza la tasa terminal de la Fed, presionando los rendimientos reales.",
             "Un aumento sorpresivo en los precios del petróleo podría contrarrestar las presiones desinflacionarias."
-          ]
+          ],
+          "id": "a662a723-ca96-4e72-89b9-308184665eb8",
+          "deleted_at": null
         },
         {
           "recommendation": "Posiciones cortas en swaps de inflación CPI en el tramo de 2 a 5 años de la curva.",
@@ -1125,7 +1157,9 @@
           "cons": [
             "Un aumento inesperado en los precios del petróleo y la gasolina es un riesgo clave para la operación.",
             "Una posible influencia política sobre la Fed el próximo año podría llevar a una relajación monetaria injustificada, aumentando las expectativas de inflación."
-          ]
+          ],
+          "id": "98d64f8f-f703-4822-8b61-ae447722991d",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1231,7 +1265,9 @@
             "Es una operación explícitamente 'contraria', lo que implica ir en contra de la tendencia dominante del mercado.",
             "El informe aconseja mantener 'stops' ajustados, lo que subraya el riesgo significativo de la operación si el escenario base no se materializa.",
             "Si se produce un escenario de recesión ('Fed behind the curve'), esta estrategia podría tener un rendimiento inferior, ya que los rendimientos en el medio de la curva podrían caer bruscamente."
-          ]
+          ],
+          "id": "2bb16ef0-f85b-4db3-8810-4b05d370d647",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1330,7 +1366,9 @@
             "Si la debilidad cíclica se intensifica más de lo previsto, podría desencadenar una recesión, obligando a la Fed a realizar recortes de tasas más profundos y rápidos de lo que la tesis anticipa.",
             "La evidencia que respalda los cambios estructurales, particularmente en migración y el impacto de la IA, es preliminar y podría ser menos impactante de lo estimado.",
             "Un evento de aversión al riesgo o un endurecimiento abrupto de las condiciones financieras podría cambiar rápidamente el cálculo de la Fed, independientemente de los factores estructurales."
-          ]
+          ],
+          "id": "1fc83ee0-45ce-4d92-b1d2-b0f1324ff41d",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1571,7 +1609,9 @@
           "cons": [
             "Una desaceleración económica global significativa podría forzar al BoJ a revertir o pausar su ciclo de normalización.",
             "La presión política sobre el BoJ, a pesar de su independencia operativa, podría limitar el ritmo y la magnitud de las alzas de tasas."
-          ]
+          ],
+          "id": "b8a3c5e5-7cac-41c5-859f-d44bd65530c5",
+          "deleted_at": null
         },
         {
           "recommendation": "Evitar posiciones bajistas adicionales en el yen japonés (JPY).",
@@ -1596,7 +1636,9 @@
             "El BoJ podría priorizar el crecimiento sobre la inflación y retrasar las alzas de tasas, permitiendo que el yen se debilite aún más.",
             "El momento de la reversión es incierto; las operaciones bajistas en el yen se cerraron con pérdidas, lo que indica una fuerte tendencia actual.",
             "El sentimiento de riesgo global puede influir en el yen, independientemente de los fundamentales locales."
-          ]
+          ],
+          "id": "e677f184-a803-4c5e-83f0-ffecefe2ede8",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener posición larga en oro, protegida con un 'trailing stop-loss' del 5%.",
@@ -1620,7 +1662,9 @@
             "El movimiento parabólico del precio aumenta la probabilidad de una corrección severa a corto plazo.",
             "Un rally impulsado por el sentimiento minorista es propenso a reversiones rápidas si las ganancias se convierten en pérdidas.",
             "El posicionamiento en el mercado puede estar sobreextendido, lo que lo hace vulnerable a una liquidación."
-          ]
+          ],
+          "id": "7face704-b8fe-4c99-ab37-0c8915c61afa",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1721,7 +1765,9 @@
           "cons": [
             "El oro no genera rendimiento (yield), lo que puede ser un costo de oportunidad en un entorno de tasas altas.",
             "Un fortalecimiento significativo del dólar estadounidense podría ejercer presión a la baja sobre los precios del oro."
-          ]
+          ],
+          "id": "b0d92f47-7838-4851-832d-f526cae58647",
+          "deleted_at": null
         },
         {
           "recommendation": "Largo en EUR/USD (Long EUR/USD)",
@@ -1739,7 +1785,9 @@
           "cons": [
             "Si la inflación en EE.UU. se mantiene persistente, la Fed podría posponer los recortes de tasas, fortaleciendo al dólar.",
             "La economía de la Eurozona enfrenta sus propios desafíos, lo que podría limitar la apreciación del euro."
-          ]
+          ],
+          "id": "9bc0a07a-20a1-42b4-95e3-0efb611d3095",
+          "deleted_at": null
         },
         {
           "recommendation": "Corto en USD/JPY (Short USD/JPY)",
@@ -1757,7 +1805,9 @@
           "cons": [
             "Cualquier indicio de una postura más restrictiva ('hawkish') por parte de la Fed podría revertir la tendencia.",
             "La política monetaria ultra expansiva del Banco de Japón limita el potencial de apreciación del yen."
-          ]
+          ],
+          "id": "69889dc0-4bfd-42e8-b9f0-e9f912f84756",
+          "deleted_at": null
         },
         {
           "recommendation": "Empinamiento de la Curva de Tesoros de EE.UU. (Long 2-Year/Short 10-Year)",
@@ -1775,7 +1825,9 @@
           "cons": [
             "Si la Fed se ve obligada a mantener las tasas altas por más tiempo debido a la inflación, la curva podría permanecer invertida o aplanarse aún más.",
             "Una desaceleración económica más profunda de lo esperado podría presionar a la baja los rendimientos a largo plazo, contrarrestando el efecto de los recortes a corto plazo."
-          ]
+          ],
+          "id": "2c43a643-21cb-4180-8405-1d4be0a4c9db",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -1901,7 +1953,9 @@
             "La recuperación económica a corto plazo es frágil y podría retrasar el rendimiento.",
             "Las tensiones geopolíticas con EE.UU. pueden generar volatilidad y correcciones inesperadas en el mercado.",
             "Riesgos regulatorios internos inherentes al mercado chino."
-          ]
+          ],
+          "id": "5c78265d-43b1-4f89-8561-60755120b2b2",
+          "deleted_at": null
         },
         {
           "recommendation": "Posición Larga Táctica (3-6 meses) en el Índice Hang Seng (HSI).",
@@ -1921,7 +1975,9 @@
             "Mayor exposición a riesgos regulatorios y tensiones geopolíticas que afectan a las grandes empresas tecnológicas listadas.",
             "La recuperación económica lenta podría impactar los beneficios de las empresas del índice.",
             "Dependencia del sentimiento de los inversores internacionales, que puede ser volátil."
-          ]
+          ],
+          "id": "b6b4e9d6-37f0-4f5e-b00a-a6234e0f355e",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -2040,7 +2096,9 @@
           "cons": [
             "La recuperación del crecimiento en China se describe como 'frágil'.",
             "Las presiones deflacionarias siguen siendo 'intensas'."
-          ]
+          ],
+          "id": "38a7d4bb-6712-414c-8a84-c3646cb1a5ec",
+          "deleted_at": null
         },
         {
           "recommendation": "Subponderar Renta Variable de India.",
@@ -2058,7 +2116,9 @@
           ],
           "cons": [
             "El informe señala que el 'mercado bajista relativo de India probablemente esté en su fase final', lo que sugiere que el potencial de la operación podría estar agotándose."
-          ]
+          ],
+          "id": "27fc617b-12cc-4dac-81cf-751727c5ea16",
+          "deleted_at": null
         },
         {
           "recommendation": "Sobreponderar Renta Variable de Sudáfrica.",
@@ -2077,7 +2137,9 @@
           ],
           "cons": [
             "El informe reconoce que su posición anterior de subponderación en este mercado fue 'costosa', lo que indica que han estado en el lado equivocado de este movimiento hasta ahora."
-          ]
+          ],
+          "id": "2d667668-7002-45da-b00a-c4fdbdb8f43e",
+          "deleted_at": null
         },
         {
           "recommendation": "Sobreponderar Renta Variable de Arabia Saudita.",
@@ -2096,7 +2158,9 @@
           "cons": [
             "Las acciones saudíes no están particularmente baratas, cotizando en línea con el benchmark de mercados emergentes.",
             "La perspectiva del mercado sigue dependiendo en gran medida de la estabilidad de los precios del petróleo."
-          ]
+          ],
+          "id": "e2b04f53-598f-440f-912c-cb280e79762d",
+          "deleted_at": null
         },
         {
           "recommendation": "Largo en Bono del Gobierno de India a 10 años, sin cobertura de divisa.",
@@ -2113,7 +2177,9 @@
           "cons": [
             "La tesis de inversión no se detalla en el informe.",
             "La posición parece contradecir la visión bajista sobre la renta variable india, y esta aparente contradicción no se explica."
-          ]
+          ],
+          "id": "a60e8089-b9eb-4932-9085-9b67333b9332",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -2164,33 +2230,6 @@
         }
       ],
       "created_at": "2025-11-12 02:48:36.124636",
-      "deleted_at": null
-    },
-    {
-      "id": "93fc1a14-aa18-4f52-8a06-3aec426d4bd1",
-      "title": "",
-      "published_date": "2025-11-12",
-      "authors": [],
-      "summary": [
-        {
-          "title": "Sin resumen",
-          "body": ""
-        }
-      ],
-      "tags": {
-        "asset_class": [],
-        "e_d": [],
-        "region": [],
-        "country": [],
-        "sector": [],
-        "trade": [],
-        "counterpart": "Citi"
-      },
-      "pros": [],
-      "cons": [],
-      "trade_ideas": [],
-      "suggested_tags": [],
-      "created_at": "2025-11-12 02:12:30.993576",
       "deleted_at": null
     },
     {
@@ -2268,7 +2307,9 @@
           "cons": [
             "El timing de la escalada es incierto; las opciones de corto plazo podrían expirar sin valor si el conflicto no se materializa rápidamente.",
             "El mercado ya podría haber descontado parte del riesgo geopolítico, limitando el potencial de alza."
-          ]
+          ],
+          "id": "e50024cf-63b8-4f76-a3bb-bb583aaf0776",
+          "deleted_at": null
         },
         {
           "recommendation": "Revertir las posiciones: comprar opciones put sobre el petróleo y opciones call sobre la renta variable global.",
@@ -2286,7 +2327,9 @@
           "cons": [
             "El 'cambio de régimen' es un evento binario y extremadamente difícil de predecir en tiempo y forma, haciendo que el punto de entrada para esta segunda operación sea muy riesgoso.",
             "El conflicto podría prolongarse sin un cambio de régimen claro, dejando esta posición en pérdida mientras se espera el catalizador."
-          ]
+          ],
+          "id": "99b21337-b58e-43bd-92bf-85c889eb1d91",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -2390,7 +2433,9 @@
             "El éxito depende críticamente del 'timing' para revertir la posición, lo cual es extremadamente difícil de ejecutar en la práctica.",
             "El escenario de un cambio de régimen en Irán no está garantizado; si no ocurre, la segunda fase de la operación carece de fundamento.",
             "La intervención de otras potencias, como Estados Unidos, o una respuesta diferente por parte de Irán, podría alterar drásticamente la secuencia y el resultado de los eventos."
-          ]
+          ],
+          "id": "296aab1e-7125-4e14-8628-7d05225250fc",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -2500,7 +2545,9 @@
           "cons": [
             "El ritmo y la profundidad de la desregulación dependen de factores políticos y pueden retrasarse o ser menos impactantes de lo esperado.",
             "Un deterioro inesperado en el entorno macroeconómico podría contrarrestar los beneficios de la desregulación."
-          ]
+          ],
+          "id": "8209beba-00f3-4991-b3d3-091c3d18d394",
+          "deleted_at": null
         },
         {
           "recommendation": "Sobreponderar acciones de bancos no estadounidenses frente a las acciones de bancos de EE.UU.",
@@ -2524,7 +2571,9 @@
             "La tesis depende de que otras jurisdicciones efectivamente sigan el camino de desregulación de EE.UU., lo cual no está garantizado.",
             "El crecimiento económico en Europa y China enfrenta sus propios desafíos estructurales que podrían limitar el impacto del estímulo.",
             "El lenguaje del informe es más cauteloso para esta recomendación (\"may continue to outperform\")."
-          ]
+          ],
+          "id": "1c59845e-e907-4a26-ab30-4d4d5ab383c3",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -2599,7 +2648,9 @@
             "Un rechazo por parte de la FDA (una 'Carta de Respuesta Completa') tendría un impacto negativo inmediato y severo en el precio de las acciones.",
             "La aprobación podría incluir una etiqueta restrictiva que limite el potencial comercial del fármaco en comparación con las expectativas.",
             "El sentimiento del mercado en el sector biotecnológico puede ser volátil, afectando la reacción del precio de las acciones incluso ante noticias positivas."
-          ]
+          ],
+          "id": "3b1102ff-518c-4ee7-8432-cf621b3cea15",
+          "deleted_at": null
         },
         {
           "recommendation": "Evaluar una posición en AstraZeneca (AZN.L) de cara a la publicación de múltiples datos de Fase 3 en la segunda mitad de 2025.",
@@ -2619,7 +2670,9 @@
             "El fracaso de un ensayo clínico clave, especialmente para un fármaco de gran expectación como Dato-DXd, podría pesar más que los éxitos en otros programas.",
             "Cualquier retraso en la publicación de los datos podría generar incertidumbre y afectar negativamente a la acción.",
             "Las expectativas del mercado ya pueden ser altas, lo que requiere datos excepcionalmente sólidos para impulsar una subida significativa de las acciones."
-          ]
+          ],
+          "id": "3d48900a-c052-406f-b1ea-a67a9fee967e",
+          "deleted_at": null
         },
         {
           "recommendation": "Monitorear el Capital Markets Day de Lufthansa (LHAG.DE) el 29 de septiembre para identificar un posible punto de entrada.",
@@ -2639,7 +2692,9 @@
             "Unas previsiones conservadoras o la falta de nuevos catalizadores podrían decepcionar al mercado y presionar el precio de las acciones a la baja.",
             "Los riesgos macroeconómicos, como el aumento de los precios del combustible o una desaceleración de la demanda de viajes, podrían eclipsar cualquier anuncio positivo.",
             "La dirección podría no proporcionar el nivel de detalle esperado por los inversores, dejando la incertidumbre sin resolver."
-          ]
+          ],
+          "id": "05ad96c1-422f-4ea5-b43d-02bb47860c3f",
+          "deleted_at": null
         },
         {
           "recommendation": "Adoptar una postura de gestión de riesgos en los activos financieros antes de la reunión del FOMC del 29 de octubre.",
@@ -2657,7 +2712,9 @@
           "cons": [
             "Una sorpresa restrictiva ('hawkish'), como una subida de tipos inesperada o un lenguaje agresivo, podría desencadenar una venta masiva en los mercados.",
             "La ambigüedad o la falta de consenso en el mensaje de la Fed podrían aumentar la volatilidad y la aversión al riesgo."
-          ]
+          ],
+          "id": "6eda7958-3a2b-458e-bd54-9c69fcb54206",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [],
@@ -2721,7 +2778,9 @@
           "cons": [
             "Un rechazo (Complete Response Letter) por parte de la FDA probablemente causaría una fuerte caída en el precio de las acciones.",
             "El riesgo regulatorio es inherentemente alto en las decisiones de la FDA."
-          ]
+          ],
+          "id": "3d14fbec-423e-403b-9a31-c78947c13d0b",
+          "deleted_at": null
         },
         {
           "recommendation": "Considerar una posición larga en Regeneron Pharmaceuticals (REGN) antes de la fecha PDUFA del 1 de octubre.",
@@ -2739,7 +2798,9 @@
           "cons": [
             "Riesgo de un rechazo o retraso por parte de la FDA, lo que impactaría negativamente en la acción.",
             "El resultado de la decisión regulatoria es binario y conlleva un riesgo de caída considerable."
-          ]
+          ],
+          "id": "82b76430-8a64-4809-ad99-2d0df596e0c1",
+          "deleted_at": null
         },
         {
           "recommendation": "Evaluar una posición larga en AstraZeneca (AZN.L) con un horizonte a largo plazo, antes de las lecturas de datos clínicos en la segunda mitad de 2025.",
@@ -2757,7 +2818,9 @@
           "cons": [
             "Riesgo de fracaso en los ensayos clínicos para cualquiera de los activos clave.",
             "El horizonte temporal es a largo plazo (2S25), lo que introduce un riesgo de mercado general durante el período de espera."
-          ]
+          ],
+          "id": "d7c06473-a3fc-4855-a097-aab7235a1383",
+          "deleted_at": null
         },
         {
           "recommendation": "Monitorear Lufthansa (LHAG.DE) antes de su Día de Mercados de Capitales el 29 de septiembre.",
@@ -2775,7 +2838,9 @@
           "cons": [
             "Riesgo de que los objetivos financieros o las perspectivas sean decepcionantes.",
             "El evento podría no contener nueva información relevante que mueva el mercado."
-          ]
+          ],
+          "id": "4e26b2b8-b5b0-457d-a844-f768eb3ed574",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [],
@@ -2843,7 +2908,9 @@
             "Algunos inversores expresaron preocupación por los niveles elevados de P/E.",
             "Incertidumbre y aumento de preguntas sobre la estrategia de salida del Banco de Japón para sus tenencias de ETF.",
             "El alto interés en la situación política tras la renuncia del Primer Ministro podría generar volatilidad a corto plazo."
-          ]
+          ],
+          "id": "6b92bf52-8f8c-4a0d-8602-dfd1609babbd",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [],
@@ -2914,7 +2981,9 @@
             "Incertidumbre sobre la estrategia de salida del Banco de Japón (BoJ) de sus tenencias de ETF, tras informes de prensa.",
             "Expectativas persistentes de una subida de tipos de interés por parte del BoJ.",
             "Algunos inversores podrían tener expectativas excesivas de expansión fiscal, lo que podría llevar a una decepción."
-          ]
+          ],
+          "id": "2d9ccbcd-69ff-46c7-b697-52faeb5baf31",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [],
@@ -3004,7 +3073,9 @@
             "Riesgo de condiciones de financiamiento más ajustadas de lo esperado, ya sea por factores imprevistos del Tesoro o por una mayor demanda de financiamiento.",
             "Una estabilización o fortalecimiento del mercado laboral podría cambiar las expectativas de política monetaria de la Fed, afectando las tasas de corto plazo.",
             "La volatilidad en la trayectoria diaria del TGA podría retrasar o alterar el impacto esperado en los mercados de financiamiento."
-          ]
+          ],
+          "id": "b60230f5-b810-4f1d-973f-43057dc03a9d",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -3115,7 +3186,9 @@
           "cons": [
             "Suiza: El modelo no puede prever shocks políticos como aranceles; valoraciones y ganancias son vientos en contra.",
             "Italia: Indicadores de divisa y ROE son vientos en contra."
-          ]
+          ],
+          "id": "96e3149b-7ef7-4c99-aef1-709772c8937b",
+          "deleted_at": null
         },
         {
           "recommendation": "Mantener exposición a bonos de Japón (JGBs) y Reino Unido (Gilts) y aumentar la de Noruega.",
@@ -3135,7 +3208,9 @@
             "Japón: Riesgo de un cambio de régimen a tasas más altas que el modelo tardaría en asimilar.",
             "Reino Unido: La incertidumbre fiscal y el aumento de la inflación pueden contrarrestar el impacto de los recortes de tasas.",
             "El modelo no puede contabilizar directamente shocks de incertidumbre fiscal en los rendimientos de los Gilts."
-          ]
+          ],
+          "id": "9ed70624-0709-46c4-9db9-ce7a9ba8d128",
+          "deleted_at": null
         },
         {
           "recommendation": "Aumentar significativamente la asignación a oro.",
@@ -3153,7 +3228,9 @@
           "cons": [
             "La recomendación se basa únicamente en el momentum, sin un respaldo fundamental mencionado en el informe.",
             "Si el momentum se revierte, la posición podría deshacerse rápidamente."
-          ]
+          ],
+          "id": "b970ec75-7f56-4b1e-a99c-c93bb8d098d1",
+          "deleted_at": null
         },
         {
           "recommendation": "Cubrir exposición a divisas locales (EUR, CHF, NOK) frente al dólar estadounidense.",
@@ -3171,7 +3248,9 @@
           "cons": [
             "Es una visión discrecional y no del modelo cuantitativo.",
             "Si la Fed recorta las tasas según o más de lo que espera el mercado, la cobertura generaría pérdidas."
-          ]
+          ],
+          "id": "d4677d94-40cd-47b0-a7a0-2b2f671d16b1",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [
@@ -3283,7 +3362,9 @@
           "cons": [
             "El propio informe señala que el mercado del oro ha subido de forma 'parabólica', lo que aumenta el riesgo de una corrección importante.",
             "El oro no genera rendimientos y su precio puede ser volátil."
-          ]
+          ],
+          "id": "fcde1cad-e47c-4831-a147-e401bc670311",
+          "deleted_at": null
         },
         {
           "recommendation": "Long S&P 500 Index ($SPY)",
@@ -3301,7 +3382,9 @@
           "cons": [
             "Exposición directa a la volatilidad generada por las tensiones comerciales entre EE.UU. y China.",
             "Riesgo de que los problemas en los bancos regionales puedan tener un impacto más amplio de lo esperado."
-          ]
+          ],
+          "id": "48753d21-264e-4ae6-b38e-a56cfaf6f40c",
+          "deleted_at": null
         },
         {
           "recommendation": "Long Brazilian 10-Year Govt Bonds Unhedged",
@@ -3319,7 +3402,9 @@
           "cons": [
             "Alta exposición al riesgo cambiario (real brasileño) al no estar cubierto.",
             "Sensibilidad a la volatilidad política y económica de Brasil."
-          ]
+          ],
+          "id": "8fc59e9c-9a17-417d-bd79-ade87d177be1",
+          "deleted_at": null
         },
         {
           "recommendation": "Long Silver ($SLVR)",
@@ -3337,7 +3422,9 @@
           "cons": [
             "Mercado a menudo más volátil que el del oro.",
             "Sensible a la desaceleración del crecimiento económico mundial debido a su uso industrial."
-          ]
+          ],
+          "id": "88eff881-d969-48a8-a6a6-f107244f5737",
+          "deleted_at": null
         },
         {
           "recommendation": "Long LME Copper",
@@ -3355,7 +3442,9 @@
           "cons": [
             "Altamente sensible a una posible desaceleración económica en China o a nivel global.",
             "La oferta puede ser volátil debido a factores geopolíticos en los países productores."
-          ]
+          ],
+          "id": "43b7933f-fa5c-479e-b700-18712b236cd7",
+          "deleted_at": null
         },
         {
           "recommendation": "Long Chinese Equities ($FXI)",
@@ -3373,7 +3462,9 @@
           "cons": [
             "Afectado por una 'gran prima de riesgo geopolítico' debido a las tensas relaciones con EE.UU.",
             "La naturaleza 'táctica' de la recomendación implica una perspectiva incierta a largo plazo."
-          ]
+          ],
+          "id": "e5237992-d400-4f19-a3f2-c5384968215f",
+          "deleted_at": null
         },
         {
           "recommendation": "Long Japanese Equities ($EWJ)",
@@ -3391,7 +3482,9 @@
           "cons": [
             "Riesgos demográficos a largo plazo.",
             "Sensibilidad a la desaceleración del crecimiento global."
-          ]
+          ],
+          "id": "d8b255bf-b923-475a-b898-fc8f7cc09d31",
+          "deleted_at": null
         },
         {
           "recommendation": "Long 10-Year Bunds/ Short 10-Year OATs",
@@ -3409,7 +3502,9 @@
           "cons": [
             "El spread puede ampliarse debido a factores políticos en Francia o a cambios en la política del BCE.",
             "Bajo potencial de retorno en un entorno de baja volatilidad."
-          ]
+          ],
+          "id": "8ddcfe5c-1ea0-4f9a-8c92-ee0dad643598",
+          "deleted_at": null
         },
         {
           "recommendation": "Short December 2026 SOFR Futures Contracts",
@@ -3427,7 +3522,9 @@
           "cons": [
             "Riesgo de que la Fed recorte las tasas más agresivamente de lo previsto si la economía se debilita.",
             "La curva de futuros ya incorpora un ciclo de política monetaria, lo que hace que la apuesta sea contra las expectativas del mercado."
-          ]
+          ],
+          "id": "f3f9b8f9-b078-492b-9952-a88308650097",
+          "deleted_at": null
         },
         {
           "recommendation": "Long Russell 2000 ($IWM)",
@@ -3445,7 +3542,9 @@
           "cons": [
             "Más vulnerables a las subidas de tasas de interés y a las condiciones crediticias restrictivas.",
             "Históricamente más volátiles que las acciones de gran capitalización."
-          ]
+          ],
+          "id": "19a3e25f-ba5f-4695-86d6-e0b4ed685012",
+          "deleted_at": null
         },
         {
           "recommendation": "Short GBP/USD",
@@ -3463,7 +3562,9 @@
           "cons": [
             "El sentimiento del mercado de divisas puede cambiar rápidamente.",
             "Exposición a decisiones de política monetaria tanto del Banco de Inglaterra como de la Reserva Federal."
-          ]
+          ],
+          "id": "2cc235d3-4e90-4d14-9715-536ce4240c41",
+          "deleted_at": null
         }
       ],
       "suggested_tags": [

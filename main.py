@@ -10,7 +10,7 @@ from models import (
 )
 from database import DuckDBClient
 from typing import List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 import os
 import uvicorn
 from datetime import datetime
@@ -207,6 +207,58 @@ def soft_delete_extraction(
         print(f"Error updating deleted_at: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.patch("/api/extractions/{extraction_id}/trade-ideas/{trade_idea_id}")
+def soft_delete_trade_idea(
+    extraction_id: UUID,
+    trade_idea_id: UUID,
+    deleted_at: Optional[str] = Body(..., embed=True)
+):
+    """
+    Soft delete de un trade idea específico
+    
+    Body:
+    {
+        "deleted_at": "2025-11-19T10:30:00" o null para restaurar
+    }
+    """
+    try:
+        # Obtener extraction
+        extraction = db.get_extraction_by_id(str(extraction_id), include_deleted=True)
+        if not extraction:
+            raise HTTPException(status_code=404, detail="Extraction not found")
+        
+        # Buscar trade idea
+        trade_ideas = extraction.get('trade_ideas', [])
+        trade_idea_found = False
+        
+        for trade_idea in trade_ideas:
+            if str(trade_idea.get('id')) == str(trade_idea_id):
+                trade_idea['deleted_at'] = deleted_at
+                trade_idea_found = True
+                break
+        
+        if not trade_idea_found:
+            raise HTTPException(status_code=404, detail="Trade idea not found")
+        
+        # Actualizar extraction completa con trade_ideas modificados
+        updated = db.update_extraction_trade_ideas(str(extraction_id), trade_ideas)
+        
+        if not updated:
+            raise HTTPException(status_code=500, detail="Failed to update trade idea")
+        
+        return {
+            "status": "success",
+            "extraction_id": str(extraction_id),
+            "trade_idea_id": str(trade_idea_id),
+            "deleted_at": deleted_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating trade idea: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============================================================
 # ENDPOINT DE DASHBOARD
 # ============================================================
@@ -334,29 +386,41 @@ def get_tag_categories():
 def dump_data():
     """
     Exporta todas las extractions a JSON y las guarda en mock_data/extractions.json
-    
-    Returns:
-        - Información del dump realizado
-        - Total de registros exportados
     """
     try:
-        db = DuckDBClient()
+        # ✅ VERIFICAR: ¿Qué devuelve get_extractions?
+        extractions = db.get_extractions(include_deleted=True)
         
-        # Obtener todas las extractions
-        extractions = db.get_extractions()
+        print(f"📊 Total extractions obtenidas: {len(extractions)}")
         
         if not extractions:
-            raise HTTPException(
-                status_code=404, 
-                detail="No hay extractions en la base de datos para exportar"
-            )
+            raise HTTPException(status_code=404, detail="No extractions found")
         
-        # Preparar data con metadata
+        # ✅ AGREGAR: Validación de datos antes de guardar
+        valid_extractions = []
+        for idx, extraction in enumerate(extractions):
+            # Verificar que la extraction tenga al menos un título
+            if extraction.get('title'):
+                # Asegurar que trade ideas tengan id
+                if 'trade_ideas' in extraction and isinstance(extraction['trade_ideas'], list):
+                    for trade_idea in extraction['trade_ideas']:
+                        if 'id' not in trade_idea or not trade_idea['id']:
+                            trade_idea['id'] = str(uuid4())
+                        if 'deleted_at' not in trade_idea:
+                            trade_idea['deleted_at'] = None
+                
+                valid_extractions.append(extraction)
+            else:
+                print(f"⚠️  Extraction {idx} sin título, se omite")
+        
+        print(f"✅ Extractions válidas: {len(valid_extractions)}")
+        
+        # Crear estructura de dump
         dump_data = {
             "exported_at": datetime.now().isoformat(),
-            "total": len(extractions),
+            "total": len(valid_extractions),
             "version": "3.0.0",
-            "extractions": extractions
+            "extractions": valid_extractions
         }
         
         # Crear directorio si no existe

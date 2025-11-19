@@ -33,11 +33,13 @@ class Tags(ContentExtractionTags):
 
 class TradeIdea(BaseModel):
     """Idea de trade anidada dentro de ExtractionTaskResponse"""
+    id: UUID = Field(default_factory=uuid4)
     recommendation: str
     summary: List[BulletPoint] = Field(default_factory=list)
     conviction: int
     pros: List[str] = Field(default_factory=list)
     cons: List[str] = Field(default_factory=list)
+    deleted_at: Optional[datetime] = Field(default=None)
 
 # ============================================================
 # RESPONSE PRINCIPAL

@@ -328,10 +328,14 @@ class DuckDBClient:
             print(traceback.format_exc())
             return []
     
-    def get_extraction_by_id(self, extraction_id: str, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
+    def get_extraction_by_id(
+        self, 
+        extraction_id: str, 
+        include_deleted: bool = False,
+        include_deleted_trade_ideas: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """Obtiene una extraction por ID"""
         try:
-            # ← AGREGAR: Condición de soft delete
             deleted_condition = "" if include_deleted else "AND deleted_at IS NULL"
             
             query = f"""
@@ -344,7 +348,16 @@ class DuckDBClient:
             if not results:
                 return None
             
-            return results[0]
+            result = results[0]
+            
+            # Filtrar trade ideas eliminados si no se pide incluirlos
+            if not include_deleted_trade_ideas and 'trade_ideas' in result:
+                result['trade_ideas'] = [
+                    ti for ti in result['trade_ideas']
+                    if ti.get('deleted_at') is None
+                ]
+            
+            return result
             
         except Exception as e:
             print(f"❌ Error getting extraction by ID: {str(e)}")
@@ -368,6 +381,33 @@ class DuckDBClient:
             print("DB error updating deleted_at:", e)
             return False
     
+    def update_extraction_trade_ideas(self, extraction_id: str, trade_ideas: List[Dict]) -> bool:
+        """
+        Actualiza el array completo de trade_ideas de una extraction
+        
+        Args:
+            extraction_id: UUID de la extraction
+            trade_ideas: Lista completa de trade ideas (con deleted_at actualizados)
+        
+        Returns:
+            True si se actualizó correctamente
+        """
+        try:
+            trade_ideas_json = json.dumps(trade_ideas)
+            
+            query = """
+                UPDATE research_extractions
+                SET trade_ideas = ?
+                WHERE id = ?
+            """
+            
+            self.conn.execute(query, [trade_ideas_json, extraction_id])
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error updating trade ideas: {str(e)}")
+            return False
+
     # ============================================================
     # MÉTODOS DE ESTADÍSTICAS
     # ============================================================
@@ -657,10 +697,14 @@ class DuckDBClient:
         json_fields = ['authors', 'summary', 'tags', 'pros', 'cons', 'trade_ideas', 'suggested_tags']
         for field in json_fields:
             if field in result and isinstance(result[field], str):
-                try:
-                    result[field] = json.loads(result[field])
-                except json.JSONDecodeError:
-                    result[field] = []
+                result[field] = json.loads(result[field])
+        
+        # Filtrar trade ideas eliminadas
+        if 'trade_ideas' in result and isinstance(result['trade_ideas'], list):
+            result['trade_ideas'] = [
+                ti for ti in result['trade_ideas']
+                if ti.get('deleted_at') is None
+            ]
         
         return result
     
