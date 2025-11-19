@@ -635,7 +635,6 @@ class DuckDBClient:
         
         return result
     
-    
     def close(self):
         """Cierra conexión a DB"""
         self.conn.close()

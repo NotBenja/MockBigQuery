@@ -56,6 +56,7 @@ class ExtractionTaskResponse(BaseModel):
     trade_ideas: List[TradeIdea] = Field(default_factory=list)
     suggested_tags: List[SuggestedTag] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
+    deleted_at: Optional[datetime] = Field(default=None)
 
     class Config:
         json_schema_extra = {
