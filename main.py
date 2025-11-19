@@ -172,43 +172,26 @@ def create_extraction(extraction: ExtractionTaskResponse):
 @app.patch("/api/extractions/{extraction_id}", response_model=ExtractionTaskResponse)
 def soft_delete_extraction(
     extraction_id: UUID,
-    deleted_at: Optional[str] = Body(default=None)  # ← Usar default=None
+    deleted_at: Optional[str] = Body(..., embed=True)
 ):
     """
-    Soft delete/restore de una extraction
-    
-    Body para borrar (fecha actual automática):
-    {}
-    
-    Body para borrar con fecha específica:
+    Soft delete de una extraction actualizando el campo deleted_at
+
+    Body esperado:
     {
         "deleted_at": "2025-01-01T10:30:00"
     }
-    
-    Body para restaurar:
-    {
-        "deleted_at": null
-    }
+
+    Si deleted_at es null, se restaura el documento.
     """
     try:
-        # Obtener extraction incluyendo borrados
-        extraction = db.get_extraction_by_id(str(extraction_id), include_deleted=True)
-        
+        extraction = db.get_extraction_by_id(str(extraction_id))
         if not extraction:
             raise HTTPException(status_code=404, detail="Extraction not found")
 
-        # Lógica:
-        # - Si NO se envía body o deleted_at no está presente → usar fecha actual (borrar)
-        # - Si deleted_at es null explícitamente → restaurar (None)
-        # - Si deleted_at es una fecha → usar esa fecha
-        
-        # Si no se envió nada en el body, deleted_at será None por defecto
-        # y lo interpretamos como "borrar con fecha actual"
-        if deleted_at is None and extraction.get("deleted_at") is None:
-            # Si la extraction NO está borrada y no se envió fecha → borrar ahora
+        if deleted_at is None:
             deleted_at = datetime.now().isoformat()
         
-        # Actualizar el campo
         extraction["deleted_at"] = deleted_at
 
         updated = db.update_extraction_deleted_at(str(extraction_id), deleted_at)
