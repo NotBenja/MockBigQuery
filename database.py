@@ -252,7 +252,8 @@ class DuckDBClient:
         tags: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
+        include_deleted: bool = False  # ← Nuevo parámetro
     ) -> List[Dict[str, Any]]:
         """
         Obtiene extractions con filtros opcionales
@@ -300,6 +301,10 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
+            # ← AGREGAR: Filtro de soft delete por defecto
+            if not include_deleted:
+                where_clauses.append("deleted_at IS NULL")
+            
             # Construir WHERE
             if where_clauses:
                 base_query += " WHERE " + " AND ".join(where_clauses)
@@ -323,17 +328,23 @@ class DuckDBClient:
             print(traceback.format_exc())
             return []
     
-    def get_extraction_by_id(self, extraction_id: str) -> Optional[Dict[str, Any]]:
+    def get_extraction_by_id(self, extraction_id: str, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
         """Obtiene una extraction por ID"""
         try:
-            result = self.conn.execute(
-                "SELECT * FROM research_extractions WHERE id = ?",
-                [extraction_id]
-            ).fetchone()
+            # ← AGREGAR: Condición de soft delete
+            deleted_condition = "" if include_deleted else "AND deleted_at IS NULL"
             
-            if result:
-                return self._row_to_dict(result)
-            return None
+            query = f"""
+                SELECT * FROM research_extractions 
+                WHERE id = '{extraction_id}' {deleted_condition}
+            """
+            
+            results = self.execute(query)
+            
+            if not results:
+                return None
+            
+            return results[0]
             
         except Exception as e:
             print(f"❌ Error getting extraction by ID: {str(e)}")
@@ -368,7 +379,10 @@ class DuckDBClient:
         end_date: Optional[str] = None,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """Obtiene tags más populares (con AND logic si se filtran tags base)"""
+        """Obtiene los tags más populares"""
+        
+        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
+        
         try:
             query = """
                 SELECT 
@@ -408,8 +422,9 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            if where_clauses:
-                query += " WHERE " + " AND ".join(where_clauses)
+            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
             
             query += """
                 GROUP BY t.name, t.category
@@ -431,7 +446,10 @@ class DuckDBClient:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Obtiene conteo de extractions por país (con AND logic en tags base)"""
+        """Obtiene estadísticas por país"""
+        
+        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
+        
         try:
             query = """
                 SELECT 
@@ -470,6 +488,10 @@ class DuckDBClient:
                 query += " AND re.published_date <= ?"
                 params.append(end_date)
             
+            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
             query += " GROUP BY t.name ORDER BY count DESC"
             
             result = self.conn.execute(query, params).fetchall()
@@ -485,7 +507,10 @@ class DuckDBClient:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Obtiene conteo de extractions por sector (con AND logic en tags base)"""
+        """Obtiene estadísticas por sector"""
+        
+        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
+        
         try:
             query = """
                 SELECT 
@@ -523,6 +548,10 @@ class DuckDBClient:
             if end_date:
                 query += " AND re.published_date <= ?"
                 params.append(end_date)
+            
+            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
             
             query += " GROUP BY t.name ORDER BY count DESC"
             
