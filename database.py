@@ -421,8 +421,6 @@ class DuckDBClient:
     ) -> List[Dict[str, Any]]:
         """Obtiene los tags más populares"""
         
-        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
-        
         try:
             query = """
                 SELECT 
@@ -436,6 +434,9 @@ class DuckDBClient:
             
             params = []
             where_clauses = []
+            
+            # ✅ Siempre filtrar soft deleted
+            where_clauses.append("re.deleted_at IS NULL")
             
             # Si se filtran por tags base, aplicar AND logic (normalizar)
             if tag_names and len(tag_names) > 0:
@@ -462,9 +463,9 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
+            # ✅ AGREGAR WHERE si hay condiciones
+            if where_clauses:
+                query += " WHERE " + " AND ".join(where_clauses)
             
             query += """
                 GROUP BY t.name, t.category
@@ -479,7 +480,7 @@ class DuckDBClient:
         except Exception as e:
             print(f"❌ Error getting popular tags: {str(e)}")
             return []
-    
+
     def get_extractions_by_country(
         self,
         tag_names: Optional[List[str]] = None,
@@ -487,8 +488,6 @@ class DuckDBClient:
         end_date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Obtiene estadísticas por país"""
-        
-        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
         
         try:
             query = """
@@ -498,17 +497,21 @@ class DuckDBClient:
                 FROM research_extractions re
                 JOIN extraction_tags et ON re.id = et.extraction_id
                 JOIN tags t ON et.tag_id = t.id
-                WHERE t.category = 'country'
             """
             
             params = []
+            where_clauses = []
+            
+            # ✅ Filtros base
+            where_clauses.append("t.category = 'country'")
+            where_clauses.append("re.deleted_at IS NULL")
             
             # Filtro AND para tags base (normalizar)
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
                 placeholders = ','.join(['?' for _ in normalized_tags])
-                query += f""" 
-                    AND re.id IN (
+                where_clauses.append(f""" 
+                    re.id IN (
                         SELECT extraction_id 
                         FROM extraction_tags et2 
                         JOIN tags t2 ON et2.tag_id = t2.id 
@@ -516,21 +519,20 @@ class DuckDBClient:
                         GROUP BY extraction_id
                         HAVING COUNT(DISTINCT t2.name) = ?
                     )
-                """
+                """)
                 params.extend(normalized_tags)
                 params.append(len(normalized_tags))
             
             if start_date:
-                query += " AND re.published_date >= ?"
+                where_clauses.append("re.published_date >= ?")
                 params.append(start_date)
             
             if end_date:
-                query += " AND re.published_date <= ?"
+                where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
+            # ✅ AGREGAR WHERE
+            query += " WHERE " + " AND ".join(where_clauses)
             
             query += " GROUP BY t.name ORDER BY count DESC"
             
@@ -549,8 +551,6 @@ class DuckDBClient:
     ) -> List[Dict[str, Any]]:
         """Obtiene estadísticas por sector"""
         
-        conditions = ["deleted_at IS NULL"]  # ← AGREGAR siempre
-        
         try:
             query = """
                 SELECT 
@@ -559,17 +559,21 @@ class DuckDBClient:
                 FROM research_extractions re
                 JOIN extraction_tags et ON re.id = et.extraction_id
                 JOIN tags t ON et.tag_id = t.id
-                WHERE t.category = 'sector'
             """
             
             params = []
+            where_clauses = []
+            
+            # ✅ Filtros base
+            where_clauses.append("t.category = 'sector'")
+            where_clauses.append("re.deleted_at IS NULL")
             
             # Filtro AND para tags base (normalizar)
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
                 placeholders = ','.join(['?' for _ in normalized_tags])
-                query += f""" 
-                    AND re.id IN (
+                where_clauses.append(f""" 
+                    re.id IN (
                         SELECT extraction_id 
                         FROM extraction_tags et2 
                         JOIN tags t2 ON et2.tag_id = t2.id 
@@ -577,21 +581,20 @@ class DuckDBClient:
                         GROUP BY extraction_id
                         HAVING COUNT(DISTINCT t2.name) = ?
                     )
-                """
+                """)
                 params.extend(normalized_tags)
                 params.append(len(normalized_tags))
             
             if start_date:
-                query += " AND re.published_date >= ?"
+                where_clauses.append("re.published_date >= ?")
                 params.append(start_date)
             
             if end_date:
-                query += " AND re.published_date <= ?"
+                where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ← AGREGAR: Condiciones adicionales (siempre incluir deleted_at IS NULL)
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
+            # ✅ AGREGAR WHERE
+            query += " WHERE " + " AND ".join(where_clauses)
             
             query += " GROUP BY t.name ORDER BY count DESC"
             
