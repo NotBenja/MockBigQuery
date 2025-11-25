@@ -314,43 +314,44 @@ def query_dashboard(request: DashboardQueryRequest):
     try:
         print(f"📊 Dashboard query: tags={request.tags}, dates={request.startDate} to {request.endDate}")
         
-        # Obtener extractions
-        extractions = db.get_extractions(
+        # Activos para estadísticas
+        active_extractions = db.get_extractions(
             tags=request.tags,
             start_date=request.startDate,
-            end_date=request.endDate
+            end_date=request.endDate,
+            include_deleted=False
         )
-        
-        # Contar trade ideas totales
-        total_trade_ideas = sum(len(e.get('trade_ideas', [])) for e in extractions)
-        
-        # Convertir a Pydantic models
-        results = [ExtractionTaskResponse(**e) for e in extractions]
-        
-        # Obtener estadísticas
+        # Todos (incluye borrados) para results
+        all_extractions = db.get_extractions(
+            tags=request.tags,
+            start_date=request.startDate,
+            end_date=request.endDate,
+            include_deleted=True
+        )
+        # Trade ideas no borradas en activos
+        total_trade_ideas = sum(
+            len([ti for ti in e.get('trade_ideas', []) if not ti.get('deleted_at')])
+            for e in active_extractions
+        )
+        results = [ExtractionTaskResponse(**e) for e in all_extractions]
         popular_tags_data = db.get_popular_tags(
             tag_names=request.tags,
             start_date=request.startDate,
             end_date=request.endDate,
             limit=5
         )
-        
         by_country_data = db.get_extractions_by_country(
             tag_names=request.tags,
             start_date=request.startDate,
             end_date=request.endDate
         )
-        
         by_sector_data = db.get_extractions_by_sector(
             tag_names=request.tags,
             start_date=request.startDate,
             end_date=request.endDate
         )
-        
-        print(f"✅ Found {len(results)} extractions with {total_trade_ideas} trade ideas")
-        
         return DashboardResponse(
-            total_extractions=len(results),
+            total_extractions=len(active_extractions),
             total_trade_ideas=total_trade_ideas,
             date_range={
                 "start": request.startDate or "No especificada",
@@ -425,7 +426,7 @@ def dump_data():
     """
     try:
         # ✅ Sin filtro de deleted_at
-        extractions = db.get_extractions()
+        extractions = db.get_extractions(include_deleted=True)
         
         print(f"📊 Total extractions obtenidas: {len(extractions)}")
         

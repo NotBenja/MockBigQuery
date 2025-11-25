@@ -252,16 +252,18 @@ class DuckDBClient:
         tags: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
+        include_deleted: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Obtiene extractions con filtros opcionales
+        Obtiene extractions (incluye borrados si include_deleted=True).
         
         Args:
             tags: Lista de nombres de tags (AND logic - debe tener TODOS)
             start_date: Fecha inicial (YYYY-MM-DD)
             end_date: Fecha final (YYYY-MM-DD)
             limit: Límite de resultados
+            include_deleted: Incluir extractions borradas (deleted_at no debe ser NULL)
         
         Returns:
             Lista de dicts con extractions
@@ -270,6 +272,9 @@ class DuckDBClient:
             base_query = "SELECT * FROM research_extractions re"
             params = []
             where_clauses = []
+
+            if not include_deleted:
+                where_clauses.append("re.deleted_at IS NULL")
             
             # Filtro por tags (AND logic)
             if tags and len(tags) > 0:
@@ -388,8 +393,7 @@ class DuckDBClient:
         end_date: Optional[str] = None,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """Obtiene los tags más populares"""
-        
+        """Tags más populares (excluye research borrados)."""
         try:
             query = """
                 SELECT 
@@ -400,9 +404,8 @@ class DuckDBClient:
                 JOIN extraction_tags et ON t.id = et.tag_id
                 JOIN research_extractions re ON et.extraction_id = re.id
             """
-            
             params = []
-            where_clauses = []
+            where_clauses = ["re.deleted_at IS NULL"]
             
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
@@ -451,8 +454,7 @@ class DuckDBClient:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Obtiene estadísticas por país"""
-        
+        """Estadísticas por país (excluye borrados)."""
         try:
             query = """
                 SELECT 
@@ -462,11 +464,8 @@ class DuckDBClient:
                 JOIN extraction_tags et ON re.id = et.extraction_id
                 JOIN tags t ON et.tag_id = t.id
             """
-            
             params = []
-            where_clauses = []
-            
-            where_clauses.append("t.category = 'country'")
+            where_clauses = ["re.deleted_at IS NULL", "t.category = 'country'"]
             
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
@@ -508,8 +507,7 @@ class DuckDBClient:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Obtiene estadísticas por sector"""
-        
+        """Estadísticas por sector (excluye borrados)."""
         try:
             query = """
                 SELECT 
@@ -519,11 +517,8 @@ class DuckDBClient:
                 JOIN extraction_tags et ON re.id = et.extraction_id
                 JOIN tags t ON et.tag_id = t.id
             """
-            
             params = []
-            where_clauses = []
-            
-            where_clauses.append("t.category = 'sector'")
+            where_clauses = ["re.deleted_at IS NULL", "t.category = 'sector'"]
             
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
