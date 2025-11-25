@@ -170,70 +170,103 @@ def create_extraction(extraction: ExtractionTaskResponse):
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.patch("/api/extractions/{extraction_id}", response_model=ExtractionTaskResponse)
-def soft_delete_extraction(
+def soft_delete_or_restore_extraction(
     extraction_id: UUID,
     deleted_at: Optional[str] = Body(..., embed=True)
 ):
     """
-    Soft delete de una extraction actualizando el campo deleted_at
-
-    Body esperado:
+    Soft delete o restauración de una extraction (toggle)
+    
+    Lógica:
+    - Si extraction.deleted_at != null → restaura (pone null)
+    - Si extraction.deleted_at == null → elimina (pone deleted_at recibido)
+    
+    Body:
     {
         "deleted_at": "2025-01-01T10:30:00"
     }
-
-    Si deleted_at es null, se restaura el documento.
     """
     try:
         extraction = db.get_extraction_by_id(str(extraction_id))
         if not extraction:
             raise HTTPException(status_code=404, detail="Extraction not found")
 
-        if deleted_at is None:
-            deleted_at = datetime.now().isoformat()
+        # Lógica de toggle
+        current_deleted_at = extraction.get("deleted_at")
         
-        extraction["deleted_at"] = deleted_at
+        if current_deleted_at is not None:
+            # Ya está eliminado → restaurar (poner null)
+            new_deleted_at = None
+            action = "restaurada"
+        else:
+            # No está eliminado → eliminar (usar deleted_at recibido)
+            new_deleted_at = deleted_at if deleted_at else datetime.now().isoformat()
+            action = "eliminada"
+        
+        extraction["deleted_at"] = new_deleted_at
 
-        updated = db.update_extraction_deleted_at(str(extraction_id), deleted_at)
+        updated = db.update_extraction_deleted_at(str(extraction_id), new_deleted_at)
 
         if not updated:
             raise HTTPException(status_code=500, detail="Failed to update deleted_at field")
+        
+        print(f"✅ Extraction {extraction_id} {action}")
         
         return ExtractionTaskResponse(**extraction)
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating deleted_at: {str(e)}")
+        print(f"❌ Error updating deleted_at: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.patch("/api/extractions/{extraction_id}/trade-ideas/{trade_idea_id}")
-def soft_delete_trade_idea(
+def soft_delete_or_restore_trade_idea(
     extraction_id: UUID,
     trade_idea_id: UUID,
     deleted_at: Optional[str] = Body(..., embed=True)
 ):
     """
-    Soft delete de un trade idea específico
+    Soft delete o restauración de un trade idea (toggle)
+    
+    Lógica:
+    - Si trade_idea.deleted_at != null → restaura (pone null)
+    - Si trade_idea.deleted_at == null → elimina (pone deleted_at recibido)
     
     Body:
     {
-        "deleted_at": "2025-11-19T10:30:00" o null para restaurar
+        "deleted_at": "2025-11-19T10:30:00"
     }
     """
     try:
         # Obtener extraction
-        extraction = db.get_extraction_by_id(str(extraction_id), include_deleted=True)
+        extraction = db.get_extraction_by_id(str(extraction_id))
         if not extraction:
             raise HTTPException(status_code=404, detail="Extraction not found")
         
         # Buscar trade idea
         trade_ideas = extraction.get('trade_ideas', [])
         trade_idea_found = False
+        action = ""
+        final_deleted_at = None
         
         for trade_idea in trade_ideas:
             if str(trade_idea.get('id')) == str(trade_idea_id):
-                trade_idea['deleted_at'] = deleted_at
+                # Lógica de toggle
+                current_deleted_at = trade_idea.get('deleted_at')
+                
+                if current_deleted_at is not None:
+                    # Ya está eliminado → restaurar
+                    trade_idea['deleted_at'] = None
+                    final_deleted_at = None
+                    action = "restaurado"
+                else:
+                    # No está eliminado → eliminar
+                    new_value = deleted_at if deleted_at else datetime.now().isoformat()
+                    trade_idea['deleted_at'] = new_value
+                    final_deleted_at = new_value
+                    action = "eliminado"
+                
                 trade_idea_found = True
                 break
         
@@ -246,11 +279,14 @@ def soft_delete_trade_idea(
         if not updated:
             raise HTTPException(status_code=500, detail="Failed to update trade idea")
         
+        print(f"✅ Trade idea {trade_idea_id} {action}")
+        
         return {
             "status": "success",
             "extraction_id": str(extraction_id),
             "trade_idea_id": str(trade_idea_id),
-            "deleted_at": deleted_at
+            "deleted_at": final_deleted_at,
+            "action": action
         }
         
     except HTTPException:
@@ -388,8 +424,8 @@ def dump_data():
     Exporta todas las extractions a JSON y las guarda en mock_data/extractions.json
     """
     try:
-        # ✅ VERIFICAR: ¿Qué devuelve get_extractions?
-        extractions = db.get_extractions(include_deleted=True)
+        # ✅ Sin filtro de deleted_at
+        extractions = db.get_extractions()
         
         print(f"📊 Total extractions obtenidas: {len(extractions)}")
         
@@ -434,14 +470,14 @@ def dump_data():
             json.dump(dump_data, f, indent=2, ensure_ascii=False, default=str)
         
         print(f"✅ Dump creado: {dump_file}")
-        print(f"📊 Total extractions exportadas: {len(extractions)}")
+        print(f"📊 Total extractions exportadas: {len(valid_extractions)}")
         
         db.close()
         
         return {
             "status": "success",
             "file": str(dump_file),
-            "total_extractions": len(extractions),
+            "total_extractions": len(valid_extractions),
             "exported_at": datetime.now().isoformat(),
             "version": "3.0.0"
         }

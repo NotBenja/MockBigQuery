@@ -252,8 +252,7 @@ class DuckDBClient:
         tags: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        limit: Optional[int] = None,
-        include_deleted: bool = False  # ← Nuevo parámetro
+        limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Obtiene extractions con filtros opcionales
@@ -272,12 +271,9 @@ class DuckDBClient:
             params = []
             where_clauses = []
             
-            # Filtro por tags (AND logic - debe tener TODOS los tags)
+            # Filtro por tags (AND logic)
             if tags and len(tags) > 0:
-                # Normalizar tags (quitar espacios para counterparts)
                 normalized_tags = [tag.replace(' ', '') for tag in tags]
-                
-                # Subconsulta: encontrar extractions que tengan TODOS los tags
                 placeholders = ','.join(['?' for _ in normalized_tags])
                 where_clauses.append(f"""
                     re.id IN (
@@ -301,23 +297,14 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ← AGREGAR: Filtro de soft delete por defecto
-            if not include_deleted:
-                where_clauses.append("deleted_at IS NULL")
-            
             # Construir WHERE
             if where_clauses:
                 base_query += " WHERE " + " AND ".join(where_clauses)
             
-            # Ordenar por fecha
             base_query += " ORDER BY re.published_date DESC, re.created_at DESC"
             
-            # Límite
             if limit:
                 base_query += f" LIMIT {limit}"
-            
-            print(f"🔍 Query: {base_query}")
-            print(f"📋 Params: {params}")
             
             result = self.conn.execute(base_query, params).fetchall()
             return [self._row_to_dict(row) for row in result]
@@ -328,36 +315,18 @@ class DuckDBClient:
             print(traceback.format_exc())
             return []
     
-    def get_extraction_by_id(
-        self, 
-        extraction_id: str, 
-        include_deleted: bool = False,
-        include_deleted_trade_ideas: bool = False
-    ) -> Optional[Dict[str, Any]]:
-        """Obtiene una extraction por ID"""
+    def get_extraction_by_id(self, extraction_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene una extraction por ID
+        """
         try:
-            deleted_condition = "" if include_deleted else "AND deleted_at IS NULL"
-            
-            query = f"""
-                SELECT * FROM research_extractions 
-                WHERE id = '{extraction_id}' {deleted_condition}
-            """
-            
+            query = f"SELECT * FROM research_extractions WHERE id = '{extraction_id}'"
             results = self.execute(query)
             
             if not results:
                 return None
             
-            result = results[0]
-            
-            # Filtrar trade ideas eliminados si no se pide incluirlos
-            if not include_deleted_trade_ideas and 'trade_ideas' in result:
-                result['trade_ideas'] = [
-                    ti for ti in result['trade_ideas']
-                    if ti.get('deleted_at') is None
-                ]
-            
-            return result
+            return results[0]
             
         except Exception as e:
             print(f"❌ Error getting extraction by ID: {str(e)}")
@@ -435,10 +404,6 @@ class DuckDBClient:
             params = []
             where_clauses = []
             
-            # ✅ Siempre filtrar soft deleted
-            where_clauses.append("re.deleted_at IS NULL")
-            
-            # Si se filtran por tags base, aplicar AND logic (normalizar)
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
                 placeholders = ','.join(['?' for _ in normalized_tags])
@@ -463,7 +428,6 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ✅ AGREGAR WHERE si hay condiciones
             if where_clauses:
                 query += " WHERE " + " AND ".join(where_clauses)
             
@@ -502,11 +466,8 @@ class DuckDBClient:
             params = []
             where_clauses = []
             
-            # ✅ Filtros base
             where_clauses.append("t.category = 'country'")
-            where_clauses.append("re.deleted_at IS NULL")
             
-            # Filtro AND para tags base (normalizar)
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
                 placeholders = ','.join(['?' for _ in normalized_tags])
@@ -531,9 +492,7 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ✅ AGREGAR WHERE
             query += " WHERE " + " AND ".join(where_clauses)
-            
             query += " GROUP BY t.name ORDER BY count DESC"
             
             result = self.conn.execute(query, params).fetchall()
@@ -542,7 +501,7 @@ class DuckDBClient:
         except Exception as e:
             print(f"❌ Error getting extractions by country: {str(e)}")
             return []
-    
+
     def get_extractions_by_sector(
         self,
         tag_names: Optional[List[str]] = None,
@@ -564,11 +523,8 @@ class DuckDBClient:
             params = []
             where_clauses = []
             
-            # ✅ Filtros base
             where_clauses.append("t.category = 'sector'")
-            where_clauses.append("re.deleted_at IS NULL")
             
-            # Filtro AND para tags base (normalizar)
             if tag_names and len(tag_names) > 0:
                 normalized_tags = [tag.replace(' ', '') for tag in tag_names]
                 placeholders = ','.join(['?' for _ in normalized_tags])
@@ -593,9 +549,7 @@ class DuckDBClient:
                 where_clauses.append("re.published_date <= ?")
                 params.append(end_date)
             
-            # ✅ AGREGAR WHERE
             query += " WHERE " + " AND ".join(where_clauses)
-            
             query += " GROUP BY t.name ORDER BY count DESC"
             
             result = self.conn.execute(query, params).fetchall()
@@ -690,10 +644,7 @@ class DuckDBClient:
         if not row:
             return {}
         
-        # Obtener nombres de columnas
         columns = [desc[0] for desc in self.conn.description]
-        
-        # Crear dict
         result = dict(zip(columns, row))
         
         # Parsear campos JSON
@@ -702,15 +653,8 @@ class DuckDBClient:
             if field in result and isinstance(result[field], str):
                 result[field] = json.loads(result[field])
         
-        # Filtrar trade ideas eliminadas
-        if 'trade_ideas' in result and isinstance(result['trade_ideas'], list):
-            result['trade_ideas'] = [
-                ti for ti in result['trade_ideas']
-                if ti.get('deleted_at') is None
-            ]
-        
         return result
-    
+
     def close(self):
         """Cierra conexión a DB"""
         self.conn.close()
