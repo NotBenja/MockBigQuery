@@ -33,7 +33,7 @@ class Tags(ContentExtractionTags):
 
 class TradeIdea(BaseModel):
     """Idea de trade anidada dentro de ExtractionTaskResponse"""
-    id: UUID = Field(default_factory=uuid4)
+    id: str = Field(default_factory=lambda: str(uuid4()))
     recommendation: str
     summary: List[BulletPoint] = Field(default_factory=list)
     conviction: int
@@ -47,7 +47,7 @@ class TradeIdea(BaseModel):
 
 class ExtractionTaskResponse(BaseModel):
     """Schema principal - reemplaza DataExtractionResponse"""
-    id: UUID = Field(default_factory=uuid4)
+    id: str = Field(default_factory=lambda: str(uuid4()))
     title: str
     published_date: Optional[str] = None
     authors: List[str] = Field(default_factory=list)

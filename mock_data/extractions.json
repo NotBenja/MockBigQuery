@@ -1,5 +1,5 @@
 {
-  "exported_at": "2025-11-19T19:35:00.328654",
+  "exported_at": "2025-11-26T14:39:29.977314",
   "total": 29,
   "version": "3.0.0",
   "extractions": [
@@ -2612,15 +2612,12 @@
         "e_d": [],
         "region": [],
         "country": [
-          "Financials",
-          "Health Care",
-          "Industrial",
           "NORTH AMERICA",
           "EUROPE",
           "ASIA",
           "USA"
         ],
-        "sector": [],
+        "sector": ["Financials", "Healthcare", "Industrials"],
         "trade": []
       },
       "pros": [
@@ -2747,12 +2744,10 @@
           "EUROPE",
           "ASIA",
           "USA",
-          "India",
-          "Financials",
-          "Health Care",
-          "Industrial"
+          "India"
         ],
-        "sector": [],
+        "sector": ["Financials", "Healthcare",
+          "Industrials"],
         "trade": []
       },
       "pros": [

@@ -1,3 +1,4 @@
+from uuid import UUID
 import duckdb
 import json
 from typing import List, Optional, Dict, Any
@@ -642,14 +643,27 @@ class DuckDBClient:
         columns = [desc[0] for desc in self.conn.description]
         result = dict(zip(columns, row))
         
-        # Parsear campos JSON
+        # ✅ 2. AGREGAR ESTE BLOQUE: Convertir UUID nativo a string
+        if 'id' in result and isinstance(result['id'], UUID):
+            result['id'] = str(result['id'])
+        
+        # Parsear campos JSON (código que ya tenías)
         json_fields = ['authors', 'summary', 'tags', 'pros', 'cons', 'trade_ideas', 'suggested_tags']
         for field in json_fields:
             if field in result and isinstance(result[field], str):
-                result[field] = json.loads(result[field])
+                try:
+                    result[field] = json.loads(result[field])
+                    
+                    # ✅ CORRECCIÓN EXTRA: Buscar UUIDs anidados dentro de trade_ideas
+                    if field == 'trade_ideas' and isinstance(result[field], list):
+                        for idea in result[field]:
+                            if 'id' in idea and not isinstance(idea['id'], str):
+                                idea['id'] = str(idea['id'])
+                                
+                except json.JSONDecodeError:
+                    pass # Si no es JSON, dejarlo como string
         
         return result
-
     def close(self):
         """Cierra conexión a DB"""
         self.conn.close()
